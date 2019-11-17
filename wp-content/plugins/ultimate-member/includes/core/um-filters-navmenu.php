@@ -28,24 +28,19 @@ if ( ! is_admin() ) {
 	/**
 	 * Conditional menu items
 	 *
-	 * @param $menu_items
+	 * @param $items
+	 * @param $menu
 	 * @param $args
 	 *
 	 * @return mixed
 	 */
-	function um_conditional_nav_menu( $menu_items, $args ) {
-		//if empty
-		if ( empty( $menu_items ) ) {
-			return $menu_items;
-		}
+	function um_conditional_nav_menu( $items, $menu, $args ) {
+
+		$hide_children_of = array();
 
 		um_fetch_user( get_current_user_id() );
 
-		$filtered_items = array();
-		$hide_children_of = array();
-
-		//other filter
-		foreach ( $menu_items as $item ) {
+		foreach ( $items as $key => $item ) {
 
 			$mode = get_post_meta( $item->ID, 'menu-item-um_nav_public', true );
 			$roles = get_post_meta( $item->ID, 'menu-item-um_nav_roles', true );
@@ -64,16 +59,11 @@ if ( ! is_admin() ) {
 
 					case 2:
 						if ( is_user_logged_in() && ! empty( $roles ) ) {
-                            if ( current_user_can( 'administrator' ) ) {
-                                $visible = true;
-                            } else {
-                                $current_user_roles = um_user( 'roles' );
-                                if ( empty( $current_user_roles ) ) {
-                                    $visible = false;
-                                } else {
-                                    $visible = ( count( array_intersect( $current_user_roles, (array)$roles ) ) > 0 ) ? true : false;
-                                }
-                            }
+							$current_user_roles = um_user( 'roles' );
+							if ( empty( $current_user_roles ) ) {
+								return false;
+							}
+							$visible = ( count( array_intersect( $current_user_roles, (array)$roles ) ) > 0 ) ? true : false;
 						} else {
 							$visible = is_user_logged_in() ? true : false;
 						}
@@ -114,31 +104,14 @@ if ( ! is_admin() ) {
 			// unset non-visible item
 			if ( ! $visible ) {
 				$hide_children_of[] = $item->ID; // store ID of item
-			} else {
-				$filtered_items[] = $item;
-				continue;
+				unset( $items[ $key ] ) ;
 			}
 
 		}
 
 		um_reset_user();
 
-		return $filtered_items;
+		return $items;
 	}
-	add_filter( 'wp_nav_menu_objects', 'um_conditional_nav_menu', 9999, 2 );
-
-
-	/**
-	 * Conditional menu items
-	 *
-	 * @param $items
-	 * @param $menu
-	 * @param $args
-	 *
-	 * @return mixed
-	 */
-	function um_get_nav_menu_items( $items, $menu, $args ) {
-		return um_conditional_nav_menu( $items, $args );
-	}
-	add_filter( 'wp_get_nav_menu_items', 'um_get_nav_menu_items', 9999, 3 );
+	add_filter( 'wp_get_nav_menu_items', 'um_conditional_nav_menu', 9999, 3 );
 }

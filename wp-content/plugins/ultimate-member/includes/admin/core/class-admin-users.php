@@ -1,9 +1,8 @@
 <?php
 namespace um\admin\core;
 
-
+// Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
-
 
 if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 
@@ -45,6 +44,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 		 */
 		function user_action_hook( $action ) {
 			switch ( $action ) {
+
 				default:
 					/**
 					 * UM hook
@@ -74,10 +74,6 @@ if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 
 				case 'um_approve_membership':
 				case 'um_reenable':
-
-					add_filter( 'um_template_tags_patterns_hook', array( UM()->password(), 'add_placeholder' ), 10, 1 );
-					add_filter( 'um_template_tags_replaces_hook', array( UM()->password(), 'add_replace_placeholder' ), 10, 1 );
-
 					UM()->user()->approve();
 					break;
 
@@ -86,10 +82,6 @@ if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 					break;
 
 				case 'um_resend_activation':
-
-					add_filter( 'um_template_tags_patterns_hook', array( UM()->user(), 'add_activation_placeholder' ), 10, 1 );
-					add_filter( 'um_template_tags_replaces_hook', array( UM()->user(), 'add_activation_replace_placeholder' ), 10, 1 );
-
 					UM()->user()->email_pending();
 					break;
 
@@ -121,7 +113,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 					<?php echo $this->get_bulk_admin_actions(); ?>
 				</select>
 
-				<input name="um_bulkedit" id="um_bulkedit" class="button" value="<?php esc_attr_e( 'Apply', 'ultimate-member' ); ?>" type="submit" />
+				<input name="um_bulkedit" id="um_bulkedit" class="button" value="<?php _e( 'Apply', 'ultimate-member' ); ?>" type="submit" />
 
 			</div>
 
@@ -205,8 +197,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 
 			$submitted = get_user_meta( $user_id, 'submitted', true );
 			if ( ! empty( $submitted ) )
-				$actions['view_info'] = '<a href="javascript:void(0);" data-modal="UM_preview_registration" data-modal-size="smaller" 
-				data-dynamic-content="um_admin_review_registration" data-arg1="' . esc_attr( $user_id ) . '" data-arg2="edit_registration">' . __( 'Info', 'ultimate-member' ) . '</a>';
+				$actions['view_info'] = '<a href="#" data-modal="UM_preview_registration" data-modal-size="smaller" data-dynamic-content="um_admin_review_registration" data-arg1="' . $user_id . '" data-arg2="edit_registration">' . __( 'Info', 'ultimate-member' ) . '</a>';
 
 			/**
 			 * UM hook
@@ -327,7 +318,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 					$current = '';
 				}
 
-				$views[ $k ] = '<a href="' . esc_url( admin_url( 'users.php' ) . '?status=' . $k ) . '" ' . $current . '>'. $v . ' <span class="count">('.UM()->query()->count_users_by_status( $k ).')</span></a>';
+				$views[$k] = '<a href="' . admin_url( 'users.php' ) . '?status=' . $k . '" ' . $current . '>'. $v . ' <span class="count">('.UM()->query()->count_users_by_status( $k ).')</span></a>';
 			}
 
 			/**
@@ -371,15 +362,13 @@ if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 		 * Bulk user editing actions
 		 */
 		function um_bulk_users_edit() {
+			$admin_err = 0;
+
 			// bulk edit users
 			if ( ! empty( $_REQUEST['users'] ) && ! empty( $_REQUEST['um_bulkedit'] ) && ! empty( $_REQUEST['um_bulk_action'] ) ) {
 
-				$rolename = UM()->roles()->get_priority_user_role( get_current_user_id() );
-				$role = get_role( $rolename );
-
-				if ( ! current_user_can( 'edit_users' ) && ! $role->has_cap( 'edit_users' )  ) {
+				if ( ! current_user_can( 'edit_users' ) )
 					wp_die( __( 'You do not have enough permissions to do that.', 'ultimate-member' ) );
-				}
 
 				check_admin_referer( 'bulk-users' );
 
@@ -388,63 +377,68 @@ if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 
 				foreach ( $users as $user_id ) {
 					UM()->user()->set( $user_id );
+					if ( ! um_user( 'super_admin' ) ) {
 
-					/**
-					 * UM hook
-					 *
-					 * @type action
-					 * @title um_admin_user_action_hook
-					 * @description Action on bulk user action
-					 * @input_vars
-					 * [{"var":"$bulk_action","type":"string","desc":"Bulk Action"}]
-					 * @change_log
-					 * ["Since: 2.0"]
-					 * @usage add_action( 'um_admin_user_action_hook{$action}', 'function_name', 10, 1 );
-					 * @example
-					 * <?php
-					 * add_action( 'um_admin_user_action_hook', 'my_admin_user_action', 10, 1 );
-					 * function my_admin_user_action( $bulk_action ) {
-					 *     // your code here
-					 * }
-					 * ?>
-					 */
-					do_action( "um_admin_user_action_hook", $bulk_action );
+						/**
+						 * UM hook
+						 *
+						 * @type action
+						 * @title um_admin_user_action_hook
+						 * @description Action on bulk user action
+						 * @input_vars
+						 * [{"var":"$bulk_action","type":"string","desc":"Bulk Action"}]
+						 * @change_log
+						 * ["Since: 2.0"]
+						 * @usage add_action( 'um_admin_user_action_hook{$action}', 'function_name', 10, 1 );
+						 * @example
+						 * <?php
+						 * add_action( 'um_admin_user_action_hook', 'my_admin_user_action', 10, 1 );
+						 * function my_admin_user_action( $bulk_action ) {
+						 *     // your code here
+						 * }
+						 * ?>
+						 */
+						do_action( "um_admin_user_action_hook", $bulk_action );
 
-					/**
-					 * UM hook
-					 *
-					 * @type action
-					 * @title um_admin_user_action_{$bulk_action}_hook
-					 * @description Action on bulk user action
-					 * @change_log
-					 * ["Since: 2.0"]
-					 * @usage add_action( 'um_admin_user_action_{$bulk_action}_hook', 'function_name', 10 );
-					 * @example
-					 * <?php
-					 * add_action( 'um_admin_user_action_{$bulk_action}_hook', 'my_admin_user_action', 10 );
-					 * function my_admin_user_action() {
-					 *     // your code here
-					 * }
-					 * ?>
-					 */
-					do_action( "um_admin_user_action_{$bulk_action}_hook" );
+						/**
+						 * UM hook
+						 *
+						 * @type action
+						 * @title um_admin_user_action_{$bulk_action}_hook
+						 * @description Action on bulk user action
+						 * @change_log
+						 * ["Since: 2.0"]
+						 * @usage add_action( 'um_admin_user_action_{$bulk_action}_hook', 'function_name', 10 );
+						 * @example
+						 * <?php
+						 * add_action( 'um_admin_user_action_{$bulk_action}_hook', 'my_admin_user_action', 10 );
+						 * function my_admin_user_action() {
+						 *     // your code here
+						 * }
+						 * ?>
+						 */
+						do_action( "um_admin_user_action_{$bulk_action}_hook" );
+
+					} else {
+						$admin_err = 1;
+					}
 				}
 
 				// Finished. redirect now
-				//if ( $admin_err == 0 ) {
+				if ( $admin_err == 0 ) {
 
-				$uri = $this->set_redirect_uri( admin_url( 'users.php' ) );
-				$uri = add_query_arg( 'update', 'users_updated', $uri );
+					$uri = $this->set_redirect_uri( admin_url( 'users.php' ) );
+					$uri = add_query_arg( 'update', 'users_updated', $uri );
 
-				wp_redirect( $uri );
-				exit;
+					wp_redirect( $uri );
 
-				/*} else {
+					exit;
+				} else {
 					wp_redirect( admin_url( 'users.php?update=err_users_updated' ) );
 					exit;
-				}*/
+				}
 
-			} elseif ( ! empty( $_REQUEST['um_bulkedit'] ) ) {
+			} else if ( ! empty( $_REQUEST['um_bulkedit'] ) ) {
 
 				$uri = $this->set_redirect_uri( admin_url( 'users.php' ) );
 				wp_redirect( $uri );
@@ -462,13 +456,11 @@ if ( ! class_exists( 'um\admin\core\Admin_Users' ) ) {
 		 */
 		function set_redirect_uri( $uri ) {
 
-			if ( ! empty( $_REQUEST['s'] ) ) {
+			if ( ! empty( $_REQUEST['s'] ) )
 				$uri = add_query_arg( 's', $_REQUEST['s'], $uri );
-			}
 
-			if ( ! empty( $_REQUEST['status'] ) ) {
+			if ( ! empty( $_REQUEST['status'] ) )
 				$uri = add_query_arg( 'status', $_REQUEST['status'], $uri );
-			}
 
 			return $uri;
 

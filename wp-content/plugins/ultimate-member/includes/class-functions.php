@@ -1,5 +1,6 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit;
-
+<?php
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 if ( ! class_exists( 'UM_Functions' ) ) {
 
@@ -11,49 +12,22 @@ if ( ! class_exists( 'UM_Functions' ) ) {
 
 
 		/**
-		 * Store URL
-		 *
-		 * @var string
+		 * @var
 		 */
-		var $store_url = 'https://ultimatemember.com/';
+		var $options;
 
 
 		/**
-		 * WP remote Post timeout
-		 * @var int
+		 * @var array variable for Flags
 		 */
-		var $request_timeout = 60;
+		var $screenload_flags;
 
 
 		/**
 		 * UM_Functions constructor.
 		 */
 		function __construct() {
-		}
-
-
-		/**
-		 * Check if AJAX now
-		 *
-		 * @return bool
-		 */
-		function is_ajax() {
-			return function_exists( 'wp_doing_ajax' ) ? wp_doing_ajax() : defined( 'DOING_AJAX' );
-		}
-
-
-		/**
-		 * Check frontend nonce
-		 *
-		 * @param bool $action
-		 */
-		function check_ajax_nonce( $action = false ) {
-			$nonce = isset( $_REQUEST['nonce'] ) ? $_REQUEST['nonce'] : '';
-			$action = empty( $action ) ? 'um-frontend-nonce' : $action;
-
-			if ( ! wp_verify_nonce( $nonce, $action ) ) {
-				wp_send_json_error( esc_js( __( 'Wrong Nonce', 'ultimate-member' ) ) );
-			}
+			$this->init_variables();
 		}
 
 
@@ -77,6 +51,51 @@ if ( ! class_exists( 'UM_Functions' ) ) {
 			}
 
 			return false;
+		}
+
+
+		/**
+		 * Get ajax routed URL
+		 *
+		 * @param string $route
+		 * @param string $method
+		 *
+		 * @return string
+		 */
+		public function get_ajax_route( $route, $method ) {
+
+			$route = str_replace( array( '\\', '/' ), '!', $route );
+			$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : '';
+			$nonce = wp_create_nonce( $ip . get_current_user_id() . $route . $method );
+
+			if ( is_admin() ) {
+				$url = add_query_arg( array(
+					'action'        => 'um_router',
+					'um_action'     => 'route',
+					'um_resource'   => $route,
+					'um_method'     => $method,
+					'um_verify'     => $nonce
+				), get_admin_url( null, 'admin-ajax.php' ) );
+			} else if ( get_option( 'permalink_structure' ) ) {
+				$url = get_home_url( null, 'um-api/route/' . $route . '/' . $method . '/' . $nonce );
+			} else {
+				$url = add_query_arg( array(
+					'um_page'       => 'api',
+					'um_action'     => 'route',
+					'um_resource'   => $route,
+					'um_method'     => $method,
+					'um_verify'     => $nonce
+				), get_home_url() );
+			}
+			return $url;
+		}
+
+
+		/**
+		 * Set variables
+		 */
+		function init_variables() {
+			$this->options = get_option( 'um_options' );
 		}
 
 
@@ -177,9 +196,8 @@ if ( ! class_exists( 'UM_Functions' ) ) {
 			}
 
 			$path = '';
-			if ( $basename ) {
-				// use '/' instead of "DIRECTORY_SEPARATOR", because wp_normalize_path makes the correct replace
-				$array = explode( '/', wp_normalize_path( trim( $basename ) ) );
+			if( $basename ) {
+				$array = explode( '/', trim( $basename, '/' ) );
 				$path  = $array[0];
 			}
 
@@ -287,16 +305,16 @@ if ( ! class_exists( 'UM_Functions' ) ) {
 		function locate_template( $template_name, $path = '' ) {
 			// check if there is template at theme folder
 			$template = locate_template( array(
-				trailingslashit( 'ultimate-member' . DIRECTORY_SEPARATOR . $path ) . $template_name
+				trailingslashit( 'ultimate-member/' . $path ) . $template_name
 			) );
 
-			if ( ! $template ) {
-				if ( $path ) {
+			if( !$template ) {
+				if( $path ) {
 					$template = trailingslashit( trailingslashit( WP_PLUGIN_DIR ) . $path );
 				} else {
 					$template = trailingslashit( um_path );
 				}
-				$template .= 'templates' . DIRECTORY_SEPARATOR . $template_name;
+				$template .= 'templates/' . $template_name;
 			}
 
 
@@ -326,9 +344,6 @@ if ( ! class_exists( 'UM_Functions' ) ) {
 		}
 
 
-		/**
-		 * @return mixed|void
-		 */
 		function cpt_list() {
 			/**
 			 * UM hook
@@ -353,42 +368,6 @@ if ( ! class_exists( 'UM_Functions' ) ) {
 			 */
 			$cpt = apply_filters( 'um_cpt_list', array( 'um_form', 'um_directory' ) );
 			return $cpt;
-		}
-
-
-		/**
-		 * @param array $array
-		 * @param string $key
-		 * @param array $insert_array
-		 *
-		 * @return array
-		 */
-		function array_insert_before( $array, $key, $insert_array ) {
-			$index = array_search( $key, array_keys( $array ) );
-			if ( $index === false ) {
-				return $array;
-			}
-
-			$array = array_slice( $array, 0, $index, true ) +
-			         $insert_array +
-			         array_slice( $array, $index, count( $array ) - 1, true );
-
-			return $array;
-		}
-
-
-		/**
-		 * @since 2.1.0
-		 *
-		 * @param $var
-		 * @return array|string
-		 */
-		function clean_array( $var ) {
-			if ( is_array( $var ) ) {
-				return array_map( array( $this, 'clean_array' ), $var );
-			} else {
-				return is_scalar( $var ) ? sanitize_text_field( $var ) : $var;
-			}
 		}
 
 	}

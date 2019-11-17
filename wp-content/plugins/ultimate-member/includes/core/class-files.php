@@ -39,8 +39,6 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 
 			$this->setup_paths();
 
-			add_action( 'template_redirect', array( &$this, 'download_routing' ) );
-
 			$this->fonticon = array(
 				'pdf' 	=> array('icon' 	=> 'um-faicon-file-pdf-o', 'color' => '#D24D4D' ),
 				'txt' 	=> array('icon' 	=> 'um-faicon-file-text-o' ),
@@ -69,197 +67,14 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 
 
 		/**
-		 * File download link generate
-		 *
-		 * @param int $form_id
-		 * @param string $field_key
-		 * @param int $user_id
-		 *
-		 * @return string
-		 */
-		function get_download_link( $form_id, $field_key, $user_id ) {
-			$field_key = urlencode( $field_key );
-
-			if ( UM()->is_permalinks ) {
-				$url = get_home_url( get_current_blog_id() );
-				$nonce = wp_create_nonce( $user_id . $form_id . 'um-download-nonce' );
-				$url = $url . "/um-download/{$form_id}/{$field_key}/{$user_id}/{$nonce}";
-			} else {
-				$url = get_home_url( get_current_blog_id() );
-				$nonce = wp_create_nonce( $user_id . $form_id . 'um-download-nonce' );
-				$url = add_query_arg( array( 'um_action' => 'download', 'um_form' => $form_id, 'um_field' => $field_key, 'um_user' => $user_id, 'um_verify' => $nonce ), $url );
-			}
-
-			//add time to query args for sites with the cache
-			return add_query_arg( array( 't' => time() ), $url );
-		}
-
-
-		/**
-		 * @return bool
-		 */
-		function download_routing() {
-			if ( 'download' !== get_query_var( 'um_action' ) ) {
-				return false;
-			}
-
-			$query_form = get_query_var( 'um_form' );
-			if ( empty( $query_form ) ) {
-				return false;
-			}
-
-			$form_id = get_query_var( 'um_form' );
-			$query_field = get_query_var( 'um_field' );
-			if ( empty( $query_field ) ) {
-				return false;
-			}
-			$field_key = urldecode( get_query_var( 'um_field' ) );
-			$query_user = get_query_var( 'um_user' );
-			if ( empty( $query_user ) ) {
-				return false;
-			}
-
-			$user_id = get_query_var( 'um_user' );
-			$user = get_userdata( $user_id );
-
-			if ( empty( $user ) || is_wp_error( $user ) ) {
-				return false;
-			}
-			$query_verify = get_query_var( 'um_verify' );
-			if ( empty( $query_verify ) ||
-			     ! wp_verify_nonce( $query_verify, $user_id . $form_id . 'um-download-nonce' ) ) {
-				return false;
-			}
-
-			um_fetch_user( $user_id );
-			$field_data = get_post_meta( $form_id, '_um_custom_fields', true );
-			if ( empty( $field_data[ $field_key ] ) ) {
-				return false;
-			}
-
-			if ( ! um_can_view_field( $field_data[ $field_key ] ) ) {
-				return false;
-			}
-
-			$field_value = UM()->fields()->field_value( $field_key );
-			if ( empty( $field_value ) ) {
-				return false;
-			}
-
-			$download_type = $field_data[ $field_key ]['type'];
-			if ( $download_type === 'file' ) {
-				$this->file_download( $user_id, $field_key, $field_value );
-			} else {
-				$this->image_download( $user_id, $field_key, $field_value );
-			}
-
-			return false;
-		}
-
-
-		/**
-		 * @param $user_id
-		 * @param $field_key
-		 * @param $field_value
-		 */
-		function image_download( $user_id, $field_key, $field_value ) {
-			$file_path = UM()->uploader()->get_upload_base_dir() . $user_id . DIRECTORY_SEPARATOR . $field_value;
-			if ( ! file_exists( $file_path ) ) {
-				if ( is_multisite() ) {
-					//multisite fix for old customers
-					$file_path = str_replace( DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . get_current_blog_id() . DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, $file_path );
-				}
-			}
-
-			//validate traversal file
-			if ( validate_file( $file_path ) === 1 ) {
-				return;
-			}
-
-			$file_info = get_user_meta( $user_id, $field_key . "_metadata", true );
-
-			$pathinfo = pathinfo( $file_path );
-			$size = filesize( $file_path );
-			$originalname = ! empty( $file_info['original_name'] ) ? $file_info['original_name'] : $pathinfo['basename'];
-			$type = ! empty( $file_info['type'] ) ? $file_info['type'] : $pathinfo['extension'];
-
-			header('Content-Description: File Transfer');
-			header('Content-Type: ' . $type );
-			header('Content-Disposition: inline; filename="' . $originalname . '"');
-			header('Content-Transfer-Encoding: binary');
-			header('Expires: 0');
-			header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-			header('Pragma: public');
-			header('Content-Length: ' . $size);
-
-			$levels = ob_get_level();
-			for ( $i = 0; $i < $levels; $i++ ) {
-				@ob_end_clean();
-			}
-
-			readfile( $file_path );
-			exit;
-		}
-
-
-		/**
-		 * @param $user_id
-		 * @param $field_key
-		 * @param $field_value
-		 */
-		function file_download( $user_id, $field_key, $field_value ) {
-			$file_path = UM()->uploader()->get_upload_base_dir() . $user_id . DIRECTORY_SEPARATOR . $field_value;
-			if ( ! file_exists( $file_path ) ) {
-				if ( is_multisite() ) {
-					//multisite fix for old customers
-					$file_path = str_replace( DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . get_current_blog_id() . DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, $file_path );
-				}
-			}
-
-			//validate traversal file
-			if ( validate_file( $file_path ) === 1 ) {
-				return;
-			}
-
-			$file_info = get_user_meta( $user_id, $field_key . "_metadata", true );
-
-			$pathinfo = pathinfo( $file_path );
-			$size = filesize( $file_path );
-			$originalname = ! empty( $file_info['original_name'] ) ? $file_info['original_name'] : $pathinfo['basename'];
-			$type = ! empty( $file_info['type'] ) ? $file_info['type'] : $pathinfo['extension'];
-
-			header('Content-Description: File Transfer');
-			header('Content-Type: ' . $type );
-			header('Content-Disposition: attachment; filename="' . $originalname . '"');
-			header('Content-Transfer-Encoding: binary');
-			header('Expires: 0');
-			header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-			header('Pragma: public');
-			header('Content-Length: ' . $size);
-
-			$levels = ob_get_level();
-			for ( $i = 0; $i < $levels; $i++ ) {
-				@ob_end_clean();
-			}
-
-			readfile( $file_path );
-			exit;
-		}
-
-
-		/**
 		 * Remove file by AJAX
 		 */
 		function ajax_remove_file() {
-			UM()->check_ajax_nonce();
-
 			/**
 			 * @var $src
 			 */
 			extract( $_REQUEST );
 			$this->delete_file( $src );
-
-			wp_send_json_success();
 		}
 
 
@@ -267,196 +82,33 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 		 * Resize image AJAX handler
 		 */
 		function ajax_resize_image() {
-			UM()->check_ajax_nonce();
+			$output = 0;
 
-			/**
-			 * @var $key
-			 * @var $src
-			 * @var $coord
-			 * @var $user_id
-			 */
 			extract( $_REQUEST );
 
-			if ( ! isset( $src ) || ! isset( $coord ) ) {
-				wp_send_json_error( esc_js( __( 'Invalid parameters', 'ultimate-member' ) ) );
+			if ( !isset($src) || !isset($coord) ) die( __('Invalid parameters') );
+
+			$coord_n = substr_count($coord, ",");
+			if ( $coord_n != 3 ) die( __('Invalid coordinates') );
+
+			$um_is_temp_image = um_is_temp_image( $src );
+			if ( !$um_is_temp_image ) die( __('Invalid Image file') );
+
+			$crop = explode(',', $coord );
+			$crop = array_map('intval', $crop);
+
+			$uri = UM()->files()->resize_image( $um_is_temp_image, $crop );
+
+			// If you're updating a user
+			if ( isset( $user_id ) && $user_id > 0 ) {
+				$uri = UM()->files()->new_user_upload( $user_id, $um_is_temp_image, $key );
 			}
 
-			$coord_n = substr_count( $coord, "," );
-			if ( $coord_n != 3 ) {
-				wp_send_json_error( esc_js( __( 'Invalid coordinates', 'ultimate-member' ) ) );
-			}
-
-			$user_id = empty( $_REQUEST['user_id'] ) ? get_current_user_id() : $_REQUEST['user_id'];
-			$image_path = um_is_file_owner( $src, $user_id, true );
-			if ( ! $image_path ) {
-				wp_send_json_error( esc_js( __( 'Invalid file ownership', 'ultimate-member' ) ) );
-			}
-
-			UM()->uploader()->replace_upload_dir = true;
-			$output = UM()->uploader()->resize_image( $image_path, $src, $key, $user_id, $coord );
-			UM()->uploader()->replace_upload_dir = false;
+			$output = $uri;
 
 			delete_option( "um_cache_userdata_{$user_id}" );
 
-			wp_send_json_success( $output );
-		}
-
-
-		/**
-		 * Image upload by AJAX
-		 *
-		 * @throws \Exception
-		 */
-		function ajax_image_upload() {
-			$ret['error'] = null;
-			$ret = array();
-
-			$id = $_POST['key'];
-			$timestamp = $_POST['timestamp'];
-			$nonce = $_POST['_wpnonce'];
-			$user_id = empty( $_POST['user_id'] ) ? get_current_user_id() : $_POST['user_id'];
-
-			UM()->fields()->set_id = $_POST['set_id'];
-			UM()->fields()->set_mode = $_POST['set_mode'];
-
-			/**
-			 * UM hook
-			 *
-			 * @type filter
-			 * @title um_image_upload_nonce
-			 * @description Change Image Upload nonce
-			 * @input_vars
-			 * [{"var":"$nonce","type":"bool","desc":"Nonce"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage
-			 * <?php add_filter( 'um_image_upload_nonce', 'function_name', 10, 1 ); ?>
-			 * @example
-			 * <?php
-			 * add_filter( 'um_image_upload_nonce', 'my_image_upload_nonce', 10, 1 );
-			 * function my_image_upload_nonce( $nonce ) {
-			 *     // your code here
-			 *     return $nonce;
-			 * }
-			 * ?>
-			 */
-			$um_image_upload_nonce = apply_filters( 'um_image_upload_nonce', true );
-
-			if ( $um_image_upload_nonce ) {
-				if ( ! wp_verify_nonce( $nonce, "um_upload_nonce-{$timestamp}" ) && is_user_logged_in() ) {
-					// This nonce is not valid.
-					$ret['error'] = __( 'Invalid nonce', 'ultimate-member' );
-					wp_send_json_error( $ret );
-				}
-			}
-
-			if ( isset( $_FILES[ $id ]['name'] ) ) {
-
-				if ( ! is_array( $_FILES[ $id ]['name'] ) ) {
-
-					UM()->uploader()->replace_upload_dir = true;
-					$uploaded = UM()->uploader()->upload_image( $_FILES[ $id ], $user_id, $id );
-					UM()->uploader()->replace_upload_dir = false;
-					if ( isset( $uploaded['error'] ) ) {
-						$ret['error'] = $uploaded['error'];
-					} else {
-						$ret[] = $uploaded['handle_upload'];
-					}
-
-				}
-
-			} else {
-				$ret['error'] = __( 'A theme or plugin compatibility issue', 'ultimate-member' );
-			}
-			wp_send_json_success( $ret );
-		}
-
-
-		/**
-		 * File upload by AJAX
-		 */
-		function ajax_file_upload() {
-			$ret['error'] = null;
-			$ret = array();
-
-			/* commented for enable download files on registration form
-			 * if ( ! is_user_logged_in() ) {
-				$ret['error'] = 'Invalid user';
-				die( json_encode( $ret ) );
-			}*/
-
-			$nonce = $_POST['_wpnonce'];
-			$id = $_POST['key'];
-			$timestamp = $_POST['timestamp'];
-
-			UM()->fields()->set_id = $_POST['set_id'];
-			UM()->fields()->set_mode = $_POST['set_mode'];
-
-			/**
-			 * UM hook
-			 *
-			 * @type filter
-			 * @title um_file_upload_nonce
-			 * @description Change File Upload nonce
-			 * @input_vars
-			 * [{"var":"$nonce","type":"bool","desc":"Nonce"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage
-			 * <?php add_filter( 'um_file_upload_nonce', 'function_name', 10, 1 ); ?>
-			 * @example
-			 * <?php
-			 * add_filter( 'um_file_upload_nonce', 'my_file_upload_nonce', 10, 1 );
-			 * function my_file_upload_nonce( $nonce ) {
-			 *     // your code here
-			 *     return $nonce;
-			 * }
-			 * ?>
-			 */
-			$um_file_upload_nonce = apply_filters("um_file_upload_nonce", true );
-
-			if ( $um_file_upload_nonce  ) {
-				if ( ! wp_verify_nonce( $nonce, 'um_upload_nonce-'.$timestamp  ) && is_user_logged_in() ) {
-					// This nonce is not valid.
-					$ret['error'] = 'Invalid nonce';
-					wp_send_json_error( $ret );
-
-				}
-			}
-
-
-			if( isset( $_FILES[ $id ]['name'] ) ) {
-
-				if ( ! is_array( $_FILES[ $id ]['name'] ) ) {
-
-					$user_id = $_POST['user_id'];
-
-					UM()->uploader()->replace_upload_dir = true;
-					$uploaded = UM()->uploader()->upload_file( $_FILES[ $id ], $user_id, $id );
-					UM()->uploader()->replace_upload_dir = false;
-					if ( isset( $uploaded['error'] ) ){
-
-						$ret['error'] = $uploaded['error'];
-
-					} else {
-
-						$uploaded_file = $uploaded['handle_upload'];
-						$ret['url'] = $uploaded_file['file_info']['name'];
-						$ret['icon'] = UM()->files()->get_fonticon_by_ext( $uploaded_file['file_info']['ext'] );
-						$ret['icon_bg'] = UM()->files()->get_fonticon_bg_by_ext( $uploaded_file['file_info']['ext'] );
-						$ret['filename'] = $uploaded_file['file_info']['basename'];
-						$ret['original_name'] = $uploaded_file['file_info']['original_name'];
-
-					}
-
-				}
-
-			} else {
-				$ret['error'] = __('A theme or plugin compatibility issue','ultimate-member');
-			}
-
-
-			wp_send_json_success( $ret );
+			if(is_array($output)){ print_r($output); }else{ echo $output; } die;
 		}
 
 
@@ -679,7 +331,6 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 		 * @return string
 		 */
 		function path_only( $file ) {
-
 			return trailingslashit( dirname( $file ) );
 		}
 
@@ -806,7 +457,6 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 		 * @param $destination
 		 */
 		function upload_temp_file( $source, $destination ) {
-
 			move_uploaded_file( $source, $destination );
 		}
 
@@ -905,58 +555,154 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 		 */
 		function get_image_data( $file ) {
 
-			$finfo = finfo_open( FILEINFO_MIME_TYPE );
+			$array['size'] = filesize( $file );
 
-			$mime_type = finfo_file( $finfo, $file );
+			$array['image'] = @getimagesize( $file );
 
-			if( function_exists('exif_imagetype') ){
+			if ( $array['image'] > 0 ) {
 
-				$array_exif_image_mimes = array( IMAGETYPE_GIF, IMAGETYPE_JPEG, IMAGETYPE_PNG );
+				$array['invalid_image'] = false;
 
-				$allowed_types = apply_filters('um_image_upload_allowed_exif_mimes', $array_exif_image_mimes );
+				list($width, $height, $type, $attr) = @getimagesize( $file );
 
-				if( ! in_array( @exif_imagetype( $file ), $allowed_types ) ) {
+				$array['width'] = $width;
+				$array['height'] = $height;
+				$array['ratio'] = $width / $height;
 
-					$array['invalid_image'] = true;
+				$array['extension'] = $this->get_extension_by_mime_type( $array['image']['mime'] );
 
-					return $array;
-				}
+			} else {
 
-			}else{
-
-				$array_image_mimes = array('image/jpeg','image/png','image/gif');
-
-				$allowed_types = apply_filters('um_image_upload_allowed_mimes', $array_image_mimes );
-
-				if ( ! in_array( $mime_type, $allowed_types ) ) {
-
-					$array['invalid_image'] = true;
-
-					return $array;
-				}
+				$array['invalid_image'] = true;
 
 			}
 
-			$array['size'] = filesize( $file );
-
-			$image_data = @getimagesize( $file );
-
-			$array['image'] = $image_data;
-
-			$array['invalid_image'] = false;
-
-			list($width, $height, $type, $attr) = $image_data;
-
-			$array['width'] = $width;
-
-			$array['height'] = $height;
-
-			$array['ratio'] = $width / $height;
-
-			$array['extension'] = $this->get_extension_by_mime_type( $mime_type );
-
-
 			return $array;
+		}
+
+
+		/**
+		 * Check image upload and handle errors
+		 *
+		 * @param $file
+		 * @param $field
+		 *
+		 * @return null|string|void
+		 */
+		function check_image_upload( $file, $field ) {
+			$error = null;
+
+			$fileinfo = $this->get_image_data( $file );
+			$data = UM()->fields()->get_field( $field );
+
+			if ( $data == null ) {
+				/**
+				 * UM hook
+				 *
+				 * @type filter
+				 * @title um_custom_image_handle_{$field}
+				 * @description Custom image handle
+				 * @input_vars
+				 * [{"var":"$data","type":"array","desc":"Image Data"}]
+				 * @change_log
+				 * ["Since: 2.0"]
+				 * @usage add_filter( 'um_custom_image_handle_{$field}', 'function_name', 10, 1 );
+				 * @example
+				 * <?php
+				 * add_filter( 'um_custom_image_handle_{$field}', 'my_custom_image_handle', 10, 1 );
+				 * function my_custom_image_handle( $data ) {
+				 *     // your code here
+				 *     return $data;
+				 * }
+				 * ?>
+				 */
+				$data = apply_filters( "um_custom_image_handle_{$field}", array() );
+				if ( ! $data ) {
+					$error = __( 'This media type is not recognized.', 'ultimate-member' );
+				}
+			}
+
+			/**
+			 * UM hook
+			 *
+			 * @type filter
+			 * @title um_image_handle_global__option
+			 * @description Custom image global handle
+			 * @input_vars
+			 * [{"var":"$data","type":"array","desc":"Image Data"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage add_filter( 'um_image_handle_global__option', 'function_name', 10, 1 );
+			 * @example
+			 * <?php
+			 * add_filter( 'um_image_handle_global__option', 'my_image_handle_global', 10, 1 );
+			 * function my_image_handle_global( $data ) {
+			 *     // your code here
+			 *     return $data;
+			 * }
+			 * ?>
+			 */
+			$data = apply_filters("um_image_handle_global__option", $data );
+			/**
+			 * UM hook
+			 *
+			 * @type filter
+			 * @title um_image_handle_{$field}__option
+			 * @description Custom image handle for each $field
+			 * @input_vars
+			 * [{"var":"$data","type":"array","desc":"Image Data"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage add_filter( 'um_image_handle_{$field}__option', 'function_name', 10, 1 );
+			 * @example
+			 * <?php
+			 * add_filter( 'um_image_handle_{$field}__option', 'my_image_handle', 10, 1 );
+			 * function my_image_handle( $data ) {
+			 *     // your code here
+			 *     return $data;
+			 * }
+			 * ?>
+			 */
+			$data = apply_filters( "um_image_handle_{$field}__option", $data );
+
+			if ( $fileinfo['invalid_image'] == true ) {
+				$error = sprintf(__('Your image is invalid or too large!','ultimate-member') );
+			} elseif ( isset( $data['allowed_types'] ) && !$this->in_array( $fileinfo['extension'], $data['allowed_types'] ) ) {
+				$error = ( isset( $data['extension_error'] ) && !empty( $data['extension_error'] ) ) ? $data['extension_error'] : 'not allowed';
+			} elseif ( isset($data['min_size']) && ( $fileinfo['size'] < $data['min_size'] ) ) {
+				$error = $data['min_size_error'];
+			} elseif ( isset($data['min_width']) && ( $fileinfo['width'] < $data['min_width'] ) ) {
+				$error = sprintf(__('Your photo is too small. It must be at least %spx wide.','ultimate-member'), $data['min_width']);
+			} elseif ( isset($data['min_height']) && ( $fileinfo['height'] < $data['min_height'] ) ) {
+				$error = sprintf(__('Your photo is too small. It must be at least %spx wide.','ultimate-member'), $data['min_height']);
+			}
+
+			return $error;
+		}
+
+
+		/**
+		 * Check file upload and handle errors
+		 *
+		 * @param $file
+		 * @param $extension
+		 * @param $field
+		 *
+		 * @return null|string
+		 */
+		function check_file_upload( $file, $extension, $field ) {
+			$error = null;
+
+			$fileinfo = $this->get_file_data( $file );
+			$data = UM()->fields()->get_field( $field );
+
+			if ( !$this->in_array( $extension, $data['allowed_types'] ) ) {
+				$error = ( isset( $data['extension_error'] ) && !empty( $data['extension_error'] ) ) ? $data['extension_error'] : 'not allowed';
+			} elseif ( isset($data['min_size']) && ( $fileinfo['size'] < $data['min_size'] ) ) {
+				$error = $data['min_size_error'];
+			}
+
+			return $error;
 		}
 
 
@@ -968,7 +714,7 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 		 *
 		 * @return bool
 		 */
-		function in_array( $value, $array ) {
+		function in_array( $value, $array ){
 
 			if ( in_array( $value, explode(',', $array ) ) ){
 				return true;
@@ -1031,7 +777,7 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 			 */
 			do_action( "um_after_remove_{$type}", $user_id );
 
-			$dir = $this->upload_basedir . $user_id . DIRECTORY_SEPARATOR;
+			$dir = $this->upload_basedir . $user_id . '/';
 			$prefix = $type;
 			chdir($dir);
 			$matches = glob($prefix.'*',GLOB_MARK);
@@ -1046,7 +792,6 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 				rmdir( $dir );
 			}
 
-			UM()->user()->remove_cache( $user_id );
 		}
 
 
@@ -1118,13 +863,250 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 		 * @param $source
 		 * @param $key
 		 *
-		 * @deprecated 2.1.0
-		 *
 		 * @return string
 		 */
 		function new_user_upload( $user_id, $source, $key ) {
-			um_deprecated_function( 'new_user_upload', '2.1.0', '' );
-			return '';
+
+			if( ! is_numeric( $user_id ) ){
+				wp_die( __("Invalid user ID: ".json_encode( $user_id )." ",'ultimate-member') );
+			}
+
+			$user_id = trim( $user_id );
+
+			// if he does not have uploads dir yet
+			$this->new_user( $user_id );
+
+			if ( is_user_logged_in() && ( get_current_user_id() != $user_id ) && ! UM()->roles()->um_user_can( 'can_edit_everyone' ) ) {
+				wp_die( __( 'Unauthorized to do this attempt.', 'ultimate-member' ) );
+			}
+
+			/**
+			 * UM hook
+			 *
+			 * @type filter
+			 * @title um_allow_frontend_image_uploads
+			 * @description Allow Fronend Image uploads
+			 * @input_vars
+			 * [{"var":"$allow","type":"bool","desc":"Allow"},
+			 * {"var":"$user_id","type":"int","desc":"User ID"},
+			 * {"var":"$key","type":"string","desc":"Field Key"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage add_filter( 'um_allow_frontend_image_uploads', 'function_name', 10, 3 );
+			 * @example
+			 * <?php
+			 * add_filter( 'um_allow_frontend_image_uploads', 'my_allow_frontend_image_uploads', 10, 3 );
+			 * function my_allow_frontend_image_uploads( $data ) {
+			 *     // your code here
+			 *     return $data;
+			 * }
+			 * ?>
+			 */
+			$allow_frontend_image_uploads = apply_filters( 'um_allow_frontend_image_uploads', false, $user_id, $key );
+
+			if ( $allow_frontend_image_uploads == false && ! is_user_logged_in() && ( $key == 'profile_photo' || $key == 'cover_photo' ) ) {
+				wp_die( __('Unauthorized to do this attempt.','ultimate-member') );
+			}
+
+			$ext = '.' . pathinfo($source, PATHINFO_EXTENSION);
+
+			// copy & overwrite file
+
+			if( in_array( $key , array('profile_photo','cover_photo') ) ){
+				$filename = $key . $ext;
+				$name = $key;
+			}else{
+				$filename = basename( $source );
+			}
+
+
+
+			if ( file_exists( $this->upload_basedir . $user_id . '/' . $filename ) ) {
+				unlink( $this->upload_basedir . $user_id . '/' . $filename );
+			}
+			copy( $source, $this->upload_basedir . $user_id . '/' . $filename );
+
+			$info = @getimagesize( $source );
+
+			// thumbs
+			if ( $key == 'profile_photo' ) {
+
+				list($w, $h) = @getimagesize( $source );
+
+
+				$sizes = UM()->options()->get( 'photo_thumb_sizes' );
+				foreach( $sizes as $size ) {
+
+					$ratio = round( $w / $h, 2 );
+					$height = round( $size / $ratio, 2 );
+
+					if ( file_exists(  $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext ) ) {
+						unlink( $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext );
+					}
+
+					if ( $size < $w ) {
+
+						if ( $info['mime'] == 'image/jpeg' ){
+							$thumb_s = imagecreatefromjpeg( $source );
+							$thumb = imagecreatetruecolor( $size, $size );
+							imagecopyresampled( $thumb, $thumb_s, 0, 0, 0, 0, $size, $size, $w, $h );
+							imagejpeg( $thumb, $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext, 100);
+							imagejpeg( $thumb, $this->upload_basedir . $user_id . '/' . $name . $ext, 100);
+						}else if ( $info['mime'] == 'image/png' ){
+							$thumb_s  = imagecreatefrompng( $source );
+							$thumb = imagecreatetruecolor( $size, $size );
+							imagealphablending( $thumb, false);
+							imagesavealpha( $thumb, true);
+							imagecopyresampled( $thumb, $thumb_s, 0, 0, 0, 0, $size, $size, $w, $h );
+							imagepng( $thumb, $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext );
+						}else if ( $info['mime'] == 'image/gif' ){
+							$thumb_s = imagecreatefromgif( $source );
+							$thumb = imagecreatetruecolor( $size, $size );
+							imagecopyresampled( $thumb, $thumb_s, 0, 0, 0, 0, $size, $size, $w, $h );
+							imagegif( $thumb, $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext);
+							imagegif( $thumb, $this->upload_basedir . $user_id . '/' . $name . $ext);
+						}
+					}
+
+				}
+
+				// removes a synced profile photo
+				delete_user_meta( $user_id, 'synced_profile_photo' );
+
+			} else if ( $key == 'cover_photo' ) {
+
+				list($w, $h) = @getimagesize( $source );
+
+				$sizes = UM()->options()->get( 'cover_thumb_sizes' );
+				foreach ( $sizes as $size ) {
+
+					$ratio = round( $w / $h, 2 );
+					$height = round( $size / $ratio, 2 );
+
+					if ( file_exists(  $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext ) ) {
+						unlink( $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext );
+					}
+
+					if ( $size < $w ) {
+
+						if ( $info['mime'] == 'image/jpeg' ){
+							$thumb = imagecreatetruecolor( $size, $height );
+							$thumb_s = imagecreatefromjpeg( $source );
+							imagecopyresampled( $thumb, $thumb_s, 0, 0, 0, 0, $size, $height, $w, $h );
+							imagejpeg( $thumb, $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext, 100);
+						}else if ( $info['mime'] == 'image/png' ){
+							$thumb_s  = imagecreatefrompng( $source );
+							$thumb = imagecreatetruecolor( $size, $height );
+							imagealphablending( $thumb, false);
+							imagesavealpha( $thumb, true);
+							imagecopyresampled( $thumb, $thumb_s, 0, 0, 0, 0, $size, $height, $w, $h );
+							imagepng( $thumb, $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext );
+						}else if ( $info['mime'] == 'image/gif' ){
+							$thumb = imagecreatetruecolor( $size, $height );
+							$thumb_s = imagecreatefromgif( $source );
+							imagecopyresampled( $thumb, $thumb_s, 0, 0, 0, 0, $size, $height, $w, $h );
+							imagegif( $thumb, $this->upload_basedir . $user_id . '/' . $name . '-' . $size . $ext);
+						}
+					}
+
+				}
+
+			}
+
+			// clean up temp
+			$dir = dirname( $source );
+			unlink( $source );
+			rmdir( $dir );
+
+			/**
+			 * UM hook
+			 *
+			 * @type action
+			 * @title um_before_upload_db_meta
+			 * @description Update user's meta before upload
+			 * @input_vars
+			 * [{"var":"$user_id","type":"int","desc":"User ID"},
+			 * {"var":"$key","type":"string","desc":"Meta key"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage add_action( 'um_before_upload_db_meta', 'function_name', 10, 2 );
+			 * @example
+			 * <?php
+			 * add_action( 'um_before_upload_db_meta', 'my_before_upload_db_meta', 10, 2 );
+			 * function my_before_upload_db_meta( $user_id, $key ) {
+			 *     // your code here
+			 * }
+			 * ?>
+			 */
+			do_action( 'um_before_upload_db_meta', $user_id, $key );
+			/**
+			 * UM hook
+			 *
+			 * @type action
+			 * @title um_before_upload_db_meta_{$key}
+			 * @description Update user's meta before upload
+			 * @input_vars
+			 * [{"var":"$user_id","type":"int","desc":"User ID"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage add_action( 'um_before_upload_db_meta_{$key}', 'function_name', 10, 1 );
+			 * @example
+			 * <?php
+			 * add_action( 'um_before_upload_db_meta_{$key}', 'my_before_upload_db_meta', 10, 1 );
+			 * function my_before_upload_db_meta( $user_id ) {
+			 *     // your code here
+			 * }
+			 * ?>
+			 */
+			do_action( "um_before_upload_db_meta_{$key}", $user_id );
+
+			update_user_meta( $user_id, $key, $filename );
+
+			/**
+			 * UM hook
+			 *
+			 * @type action
+			 * @title um_after_upload_db_meta
+			 * @description Update user's meta before upload
+			 * @input_vars
+			 * [{"var":"$user_id","type":"int","desc":"User ID"},
+			 * {"var":"$key","type":"string","desc":"Meta key"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage add_action( 'um_after_upload_db_meta', 'function_name', 10, 2 );
+			 * @example
+			 * <?php
+			 * add_action( 'um_after_upload_db_meta', 'my_after_upload_db_meta', 10, 2 );
+			 * function my_after_upload_db_meta( $user_id, $key ) {
+			 *     // your code here
+			 * }
+			 * ?>
+			 */
+			do_action( 'um_after_upload_db_meta', $user_id, $key );
+			/**
+			 * UM hook
+			 *
+			 * @type action
+			 * @title um_after_upload_db_meta_{$key}
+			 * @description Update user's meta after upload
+			 * @input_vars
+			 * [{"var":"$user_id","type":"int","desc":"User ID"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage add_action( 'um_after_upload_db_meta_{$key}', 'function_name', 10, 1 );
+			 * @example
+			 * <?php
+			 * add_action( 'um_after_upload_db_meta_{$key}', 'my_after_upload_db_meta', 10, 1 );
+			 * function my_after_upload_db_meta( $user_id ) {
+			 *     // your code here
+			 * }
+			 * ?>
+			 */
+			do_action( "um_after_upload_db_meta_{$key}", $user_id );
+
+			// the url of upload
+			return $this->upload_baseurl . $user_id . '/' . $filename;
+
 		}
 
 
@@ -1143,47 +1125,6 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 
 
 		/**
-		 * Remove old files
-		 * @param string $dir							Path to directoty.
-		 * @param int|string $timestamp		Unix timestamp or PHP relative time. All older files will be removed.
-		 */
-		function remove_old_files( $dir, $timestamp = NULL ) {
-
-			$removed_files = array();
-
-			if ( empty( $timestamp ) ) {
-				$timestamp = strtotime( '-1 day' );
-			}
-			elseif ( is_string( $timestamp ) && !is_numeric( $timestamp ) ) {
-				$timestamp = strtotime( $timestamp );
-			}
-
-			if ( $timestamp && is_dir( $dir ) ) {
-
-				$files = glob( $dir . '/*' );
-
-				foreach ( (array) $files as $file ) {
-					if ( in_array( wp_basename( $file ), array('.', '..') ) ) {
-						continue;
-					}
-					elseif ( is_dir( $file ) ) {
-						$this->remove_old_files( $file, $timestamp );
-					}
-					elseif ( is_file( $file ) ) {
-						$fileatime = fileatime( $file );
-						if ( $fileatime && $fileatime < (int) $timestamp ) {
-							unlink( $file );
-							$removed_files[] = $file;
-						}
-					}
-				}
-			}
-
-			return $removed_files;
-		}
-
-
-		/**
 		 * Format Bytes
 		 *
 		 * @param $size
@@ -1191,46 +1132,193 @@ if ( ! class_exists( 'um\core\Files' ) ) {
 		 *
 		 * @return string
 		 */
-		function format_bytes( $size, $precision = 1 ) {
-			if ( is_numeric( $size ) ) {
-				$base = log( $size, 1024 );
-				$suffixes = array( '', 'kb', 'MB', 'GB', 'TB' );
-				$computed_size = round( pow( 1024, $base - floor( $base ) ), $precision );
-				$unit = $suffixes[ floor( $base ) ];
+		function format_bytes( $size , $precision = 1 ) {
 
-				return $computed_size.' '.$unit;
-			}
+			$base = log($size, 1024);
+			$suffixes = array('', 'kb', 'MB', 'GB', 'TB');
+			$computed_size = round(pow(1024, $base - floor($base)), $precision);
+			$unit = $suffixes[ floor($base) ];
 
-			return '';
+			return   $computed_size.' '.$unit;
+
 		}
 
 
 		/**
-		 * Get the list of profile/cover sizes
-		 *
-		 * @param string $type
-		 *
-		 * @return array
+		 * Image upload by AJAX
 		 */
-		function get_profile_photo_size( $type ) {
-			$sizes = UM()->options()->get( $type );
+		function ajax_image_upload() {
+			$ret['error'] = null;
+			$ret = array();
 
-			$sizes = array_combine( $sizes, $sizes );
+			$id = $_POST['key'];
+			$timestamp = $_POST['timestamp'];
+			$nonce = $_POST['_wpnonce'];
 
-			if ( $type == 'cover_thumb_sizes' ) {
-				foreach ( $sizes as $key => $value ) {
-					$sizes[ $key ] = $value . 'px';
-				}
-			} elseif ( $type == 'photo_thumb_sizes' ) {
-				foreach ( $sizes as $key => $value ) {
-					$sizes[ $key ] = $value . 'x' . $value . 'px';
+			UM()->fields()->set_id = $_POST['set_id'];
+			UM()->fields()->set_mode = $_POST['set_mode'];
+
+			/**
+			 * UM hook
+			 *
+			 * @type filter
+			 * @title um_image_upload_nonce
+			 * @description Change Image Upload nonce
+			 * @input_vars
+			 * [{"var":"$nonce","type":"bool","desc":"Nonce"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage
+			 * <?php add_filter( 'um_image_upload_nonce', 'function_name', 10, 1 ); ?>
+			 * @example
+			 * <?php
+			 * add_filter( 'um_image_upload_nonce', 'my_image_upload_nonce', 10, 1 );
+			 * function my_image_upload_nonce( $nonce ) {
+			 *     // your code here
+			 *     return $nonce;
+			 * }
+			 * ?>
+			 */
+			$um_image_upload_nonce = apply_filters("um_image_upload_nonce", true );
+
+			if(  $um_image_upload_nonce ){
+				if ( ! wp_verify_nonce( $nonce, 'um_upload_nonce-'.$timestamp ) && is_user_logged_in() ) {
+					// This nonce is not valid.
+					$ret['error'] = 'Invalid nonce';
+					die( json_encode( $ret ) );
 				}
 			}
 
-			$sizes['original'] = __( 'Original size', 'ultimate-member' );
-			return $sizes;
+			if(isset($_FILES[$id]['name'])) {
+
+				if(!is_array($_FILES[$id]['name'])) {
+
+					$temp = $_FILES[$id]["tmp_name"];
+					$file = $id."-".$_FILES[$id]["name"];
+					$file = sanitize_file_name($file);
+					$ext = strtolower( pathinfo($file, PATHINFO_EXTENSION) );
+
+					$error = UM()->files()->check_image_upload( $temp, $id );
+					if ( $error ){
+
+						$ret['error'] = $error;
+
+					} else {
+						$file = "stream_photo_".md5($file)."_".uniqid().".".$ext;
+						$ret[ ] = UM()->files()->new_image_upload_temp( $temp, $file, UM()->options()->get('image_compression') );
+
+					}
+
+				}
+
+			} else {
+				$ret['error'] = __('A theme or plugin compatibility issue','ultimate-member');
+			}
+			echo json_encode($ret);
+			exit;
 		}
 
 
+		/**
+		 *
+		 */
+		function ajax_file_upload(){
+			$ret['error'] = null;
+			$ret = array();
+
+			/* commented for enable download files on registration form
+			 * if ( ! is_user_logged_in() ) {
+				$ret['error'] = 'Invalid user';
+				die( json_encode( $ret ) );
+			}*/
+
+			$nonce = $_POST['_wpnonce'];
+			$id = $_POST['key'];
+			$timestamp = $_POST['timestamp'];
+
+			UM()->fields()->set_id = $_POST['set_id'];
+			UM()->fields()->set_mode = $_POST['set_mode'];
+
+			/**
+			 * UM hook
+			 *
+			 * @type filter
+			 * @title um_file_upload_nonce
+			 * @description Change File Upload nonce
+			 * @input_vars
+			 * [{"var":"$nonce","type":"bool","desc":"Nonce"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage
+			 * <?php add_filter( 'um_file_upload_nonce', 'function_name', 10, 1 ); ?>
+			 * @example
+			 * <?php
+			 * add_filter( 'um_file_upload_nonce', 'my_file_upload_nonce', 10, 1 );
+			 * function my_file_upload_nonce( $nonce ) {
+			 *     // your code here
+			 *     return $nonce;
+			 * }
+			 * ?>
+			 */
+			$um_file_upload_nonce = apply_filters("um_file_upload_nonce", true );
+
+			if ( $um_file_upload_nonce  ) {
+				if ( ! wp_verify_nonce( $nonce, 'um_upload_nonce-'.$timestamp  ) && is_user_logged_in()) {
+					// This nonce is not valid.
+					$ret['error'] = 'Invalid nonce';
+					die( json_encode( $ret ) );
+				}
+			}
+
+			if(isset($_FILES[$id]['name'])) {
+
+				if(!is_array($_FILES[$id]['name'])) {
+
+					$temp = $_FILES[$id]["tmp_name"];
+					/**
+					 * UM hook
+					 *
+					 * @type filter
+					 * @title um_upload_file_name
+					 * @description Change File Upload nonce
+					 * @input_vars
+					 * [{"var":"$filename","type":"string","desc":"Filename"},
+					 * {"var":"$id","type":"int","desc":"ID"},
+					 * {"var":"$name","type":"string","desc":"Name"}]
+					 * @change_log
+					 * ["Since: 2.0"]
+					 * @usage
+					 * <?php add_filter( 'um_upload_file_name', 'function_name', 10, 3 ); ?>
+					 * @example
+					 * <?php
+					 * add_filter( 'um_upload_file_name', 'my_upload_file_name', 10, 3 );
+					 * function my_upload_file_name( $filename, $id, $name ) {
+					 *     // your code here
+					 *     return $filename;
+					 * }
+					 * ?>
+					 */
+					$file = apply_filters( 'um_upload_file_name', $id . "-" . $_FILES[$id]["name"], $id, $_FILES[$id]["name"] );
+					$file = sanitize_file_name($file);
+					$extension = strtolower( pathinfo($file, PATHINFO_EXTENSION) );
+
+					$error = UM()->files()->check_file_upload( $temp, $extension, $id );
+					if ( $error ){
+						$ret['error'] = $error;
+					} else {
+						$ret[] = UM()->files()->new_file_upload_temp( $temp, $file );
+						$ret['icon'] = UM()->files()->get_fonticon_by_ext( $extension );
+						$ret['icon_bg'] = UM()->files()->get_fonticon_bg_by_ext( $extension );
+						$ret['filename'] = $file;
+					}
+
+				}
+
+			} else {
+				$ret['error'] = __('A theme or plugin compatibility issue','ultimate-member');
+			}
+			echo json_encode($ret);
+			exit;
+		}
 	}
 }

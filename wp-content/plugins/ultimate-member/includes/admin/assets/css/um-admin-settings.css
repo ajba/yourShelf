@@ -109,7 +109,7 @@ th.column-email.column-primary {
     width: 30.5%;
     max-width: 350px;
     padding: 14px;
-    min-height: 240px;
+    min-height: 220px;
     position: relative;
     box-sizing: border-box;
 }
@@ -239,6 +239,14 @@ th.column-email.column-primary {
     display: none !important;
 }
 */
+
+.email_template_wrapper .reset_email_template {
+    display: none;
+}
+
+.email_template_wrapper.in_theme .reset_email_template {
+    display: block;
+}
 
 .um_setting_ajax_button_response.complete {
     color:darkgreen;

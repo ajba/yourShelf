@@ -1,79 +1,91 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit;
-
+<?php
 $premium['bbpress'] = array(
 	'url' => 'https://ultimatemember.com/extensions/bbpress/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/bbpress.png',
 	'name' => 'bbPress',
 	'desc' => 'With the bbPress extension you can integrate Ultimate Member with bbPress',
 );
 
 $premium['profile-completeness'] = array(
 	'url' => 'https://ultimatemember.com/extensions/profile-completeness/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/profile-completeness.png',
 	'name' => 'Profile Completeness',
 	'desc' => 'Encourage or force users to complete their profile on your site',
 );
 
 $premium['verified-users'] = array(
 	'url' => 'https://ultimatemember.com/extensions/verified-users/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/verified-users.png',
 	'name' => 'Verified Users',
 	'desc' => 'Add a user verficiation system to your site so user accounts can be verified',
 );
 
 $premium['friends'] = array(
 	'url' => 'https://ultimatemember.com/extensions/friends/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/friends.png',
 	'name' => 'Friends',
 	'desc' => 'Increase user interaction on your site by allowing users to become friends',
 );
 
 $premium['woocommerce'] = array(
 	'url' => 'https://ultimatemember.com/extensions/woocommerce/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/woocommerce.png',
 	'name' => 'WooCommerce',
 	'desc' => 'Integrates the popular e-commerce plugin WooCommerce with Ultimate Member',
 );
 
 $premium['notices'] = array(
 	'url' => 'https://ultimatemember.com/extensions/notices/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/notices.png',
 	'name' => 'Notices',
 	'desc' => 'Alert users to important information using conditional notices',
 );
 
 $premium['followers'] = array(
 	'url' => 'https://ultimatemember.com/extensions/followers/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/follow.png',
 	'name' => 'Followers',
 	'desc' => 'Increase user interaction on your site by allowing users to follow each other',
 );
 
 $premium['mycred'] = array(
 	'url' => 'https://ultimatemember.com/extensions/mycred/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/mycred.png',
 	'name' => 'myCRED',
 	'desc' => 'With the myCRED extension you can integrate Ultimate Member with myCRED',
 );
 
 $premium['private-messages'] = array(
 	'url' => 'https://ultimatemember.com/extensions/private-messages/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/private-messages.png',
 	'name' => 'Private Messages',
 	'desc' => 'Add a private messaging system to your site & allow users to message each other',
 );
 
 $premium['social-activity'] = array(
 	'url' => 'https://ultimatemember.com/extensions/social-activity/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/social-activity.png',
 	'name' => 'Social Activity',
 	'desc' => 'Let users create public wall posts & see the activity of other users',
 );
 
 $premium['social-login'] = array(
 	'url' => 'https://ultimatemember.com/extensions/social-login/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/social-login.png',
 	'name' => 'Social Login',
 	'desc' => 'Let users register & login to your site via Facebook, Twitter, G+, LinkedIn, and more',
 );
 
 $premium['instagram'] = array(
 	'url' => 'https://ultimatemember.com/extensions/instagram/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/instagram.png',
 	'name' => 'Instagram',
 	'desc' => 'Allow users to show their Instagram photos on their profile',
 );
 
 $premium['user-tags'] = array(
 	'url' => 'https://ultimatemember.com/extensions/user-tags/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/usertags.png',
 	'name' => 'User Tags',
 	'desc' => 'With this extension you can add a user tag system to your website',
 );
@@ -81,6 +93,7 @@ $premium['user-tags'] = array(
 
 $premium['mailchimp'] = array(
 	'url' => 'https://ultimatemember.com/extensions/mailchimp/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/mailchimp.png',
 	'name' => 'MailChimp',
 	'desc' => 'Allow users to subscribe to your mailchimp lists when they signup on your site',
 );
@@ -88,66 +101,43 @@ $premium['mailchimp'] = array(
 
 $premium['user-reviews'] = array(
 	'url' => 'https://ultimatemember.com/extensions/user-reviews/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/user-reviews.png',
 	'name' => 'User Reviews',
 	'desc' => 'Allow users to rate & review each other using a 5 star rate/review system',
 );
 
 $premium['real-time-notifications'] = array(
 	'url' => 'https://ultimatemember.com/extensions/real-time-notifications/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/05/notifications.png',
 	'name' => 'Real-time Notifications',
 	'desc' => 'Add a notifications system to your site so users can receive real-time notifications',
 );
 
 $premium['private-content'] = array(
 	'url' => 'https://ultimatemember.com/extensions/private-content/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/bb-plugin/cache/private-content-page-circle.png',
 	'name' => 'Private Content',
-	'desc' => 'Display private content to logged in users that only they can access',
+	'desc' => 'With the private content extension you can provide logged in users with content that only they can access and view',
 );
 
-$premium['groups'] = array(
-	'url' => 'https://ultimatemember.com/extensions/groups/',
-	'name' => 'Groups',
-	'desc' => 'Allow users to create and join groups around shared topics, interests etc.',
-);
-
-$premium['user-photos'] = array(
-	'url' => 'https://ultimatemember.com/extensions/user-photos/',
-	'name' => 'User Photos',
-	'desc' => 'Allow users to upload photos to their profile',
-);
-
-$premium['user-bookmarks'] = array(
-	'url' => 'https://ultimatemember.com/extensions/user-bookmarks/',
-	'name' => 'User Bookmarks',
-	'desc' => 'Allow users to bookmark content from your website',
-);
-
-$premium['unsplash'] = array(
-	'url' => 'https://ultimatemember.com/extensions/unsplash/',
-	'name' => 'Unsplash',
-	'desc' => 'Allow users to select a profile cover photo from <a href="https://unsplash.com/" target="_blank">Unsplash</a> from their profile',
-);
-
-$free['forumwp'] = array(
-	'url' => 'https://ultimatemember.com/extensions/forumwp/',
-	'name' => 'ForumWP',
-	'desc' => 'Integrates Ultimate Member with the forum plugin <a href="https://forumwpplugin.com" target="_blank">ForumWP</a>',
-);
 
 $free['online-users'] = array(
 	'url' => 'https://ultimatemember.com/extensions/online-users/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/07/Online-Users.png',
 	'name' => 'Online Users',
 	'desc' => 'Display online users on your site so users can see who is online'
 );
 
 $free['google-recaptcha'] = array(
 	'url' => 'https://ultimatemember.com/extensions/google-recaptcha/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/07/google.png',
 	'name' => 'Google reCAPTCHA',
 	'desc' => 'Stop bots on your registration & login forms with Google reCAPTCHA',
 );
 
 $free['terms-conditions'] = array(
 	'url' => 'https://ultimatemember.com/extensions/terms-conditions/',
+	'image' => 'https://ultimatemember.com/wp-content/uploads/edd/2017/07/terms-conditions.png',
 	'name' => 'Terms & Conditions',
 	'desc' => 'Add terms & conditions to your registration form',
 ); ?>
@@ -158,11 +148,11 @@ $free['terms-conditions'] = array(
 
 	<div class="wp-filter um-admin-notice um-filter">
 		<div class="alignleft">
-			<?php _e( '<strong>All Access Pass</strong> – Get access to all Ultimate Member extensions at a significant discount with our All Access Pass.', 'ultimate-member' ) ?>
+			<strong>Core Extensions Bundle</strong> – Check out our extensions bundle which includes all extensions at a significant discount.
 		</div>
 		<div class="alignright">
-			<a href="https://ultimatemember.com/pricing/" class="button button-primary" target="_blank">
-				<?php _e( 'View Pricing', 'ultimate-member' ) ?>
+			<a href="https://ultimatemember.com/core-extensions-bundle/" class="button button-primary" target="_blank">
+				<?php _e( 'View our Extensions Bundle', 'ultimate-member' ) ?>
 			</a>
 		</div>
 	</div>
@@ -188,11 +178,11 @@ $free['terms-conditions'] = array(
 				foreach ( $premium as $key => $info ) { ?>
 
 					<div class="plugin-card">
-						<a href="<?php echo esc_url( $info['url'] ); ?>" class="plugin-image">
-							<img src="<?php echo esc_url( um_url . 'assets/img/extensions/' . $key . '.png'  ); ?>" alt="<?php echo esc_attr( $info['name'] ) ?>" />
+						<a href="<?php echo $info['url']; ?>" class="plugin-image">
+							<img src="<?php echo $info['image']; ?>" />
 						</a>
 						<div class="plugin-card-top">
-							<h3><a href="<?php echo esc_url( $info['url'] ); ?>"><?php echo $info['name']; ?></a></h3>
+							<h3><a href="<?php echo $info['url']; ?>"><?php echo $info['name']; ?></a></h3>
 
 							<div class="desc column-description">
 								<?php echo $info['desc']; ?>
@@ -201,12 +191,12 @@ $free['terms-conditions'] = array(
 							<div class="action-links">
 								<ul class="plugin-action-buttons">
 									<li>
-										<a class="install-now button" href="<?php echo esc_url( $info['url'] ); ?>">
+										<a class="install-now button" href="<?php echo $info['url']; ?>">
 											<?php _e( 'Get this Add on', 'ultimate-member' ) ?>
 										</a>
 									</li>
 									<li>
-										<a href="<?php echo esc_url( $info['url'] ); ?>">
+										<a href="<?php echo $info['url']; ?>">
 											<?php _e( 'More Details', 'ultimate-member' ) ?>
 										</a>
 									</li>
@@ -222,11 +212,11 @@ $free['terms-conditions'] = array(
 				foreach ( $free as $key => $info ) { ?>
 
 					<div class="plugin-card">
-						<a href="<?php echo esc_url( $info['url'] ); ?>" class="plugin-image">
-							<img src="<?php echo esc_url( um_url . 'assets/img/extensions/' . $key . '.png'  ); ?>" alt="<?php echo esc_attr( $info['name'] ) ?>" />
+						<a href="<?php echo $info['url']; ?>" class="plugin-image">
+							<img src="<?php echo $info['image']; ?>" />
 						</a>
 						<div class="plugin-card-top">
-							<h3><a href="<?php echo esc_url( $info['url'] ); ?>"><?php echo $info['name']; ?></a></h3>
+							<h3><a href="<?php echo $info['url']; ?>"><?php echo $info['name']; ?></a></h3>
 
 							<div class="desc column-description">
 								<?php echo $info['desc']; ?>
@@ -235,7 +225,7 @@ $free['terms-conditions'] = array(
 							<div class="action-links">
 								<ul class="plugin-action-buttons">
 									<li>
-										<a class="install-now button" href="<?php echo esc_url( $info['url'] ); ?>">
+										<a class="install-now button" href="<?php echo $info['url']; ?>">
 											<?php _e( 'Get this Add on', 'ultimate-member' ) ?>
 										</a>
 									</li>

@@ -392,33 +392,33 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 						),
 						'_max_size' => array(
 							'mode' => 'numeric',
-							'error' => __( 'Please enter a valid size', 'ultimate-member' )
+							'error' => __('Please enter a valid size','ultimate-member')
 						),
 					)
 				),
 
 				'date' => array(
-					'name'      => 'Date Picker',
-					'col1'      => array( '_title', '_metakey', '_help', '_default', '_range', '_years', '_years_x', '_range_start', '_range_end', '_visibility' ),
-					'col2'      => array( '_label', '_placeholder', '_public', '_roles', '_format', '_format_custom', '_pretty_format', '_disabled_weekdays' ),
-					'col3'      => array( '_required', '_editable', '_icon' ),
-					'validate'  => array(
-						'_title'        => array(
-							'mode'  => 'required',
-							'error' => __( 'You must provide a title', 'ultimate-member' )
+					'name' => 'Date Picker',
+					'col1' => array('_title','_metakey','_help','_range','_years','_years_x','_range_start','_range_end','_visibility'),
+					'col2' => array('_label','_placeholder','_public','_roles','_format','_pretty_format','_disabled_weekdays'),
+					'col3' => array('_required','_editable','_icon'),
+					'validate' => array(
+						'_title' => array(
+							'mode' => 'required',
+							'error' => __('You must provide a title','ultimate-member')
 						),
-						'_metakey'      => array(
-							'mode'  => 'unique',
+						'_metakey' => array(
+							'mode' => 'unique',
 						),
-						'_years'        => array(
-							'mode'  => 'numeric',
-							'error' => __( 'Number of years is not valid', 'ultimate-member' )
+						'_years' => array(
+							'mode' => 'numeric',
+							'error' => __('Number of years is not valid','ultimate-member')
 						),
-						'_range_start'  => array(
-							'mode'  => 'range-start',
+						'_range_start' => array(
+							'mode' => 'range-start',
 						),
-						'_range_end'    => array(
-							'mode'  => 'range-end',
+						'_range_end' => array(
+							'mode' => 'range-end',
 						),
 					)
 				),
@@ -426,12 +426,12 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 				'time' => array(
 					'name' => 'Time Picker',
 					'col1' => array('_title','_metakey','_help','_format','_visibility'),
-					'col2' => array('_label','_placeholder','_default','_public','_roles','_intervals'),
+					'col2' => array('_label','_placeholder','_public','_roles','_intervals'),
 					'col3' => array('_required','_editable','_icon'),
 					'validate' => array(
 						'_title' => array(
 							'mode' => 'required',
-							'error' => __( 'You must provide a title', 'ultimate-member' )
+							'error' => __('You must provide a title','ultimate-member')
 						),
 						'_metakey' => array(
 							'mode' => 'unique',
@@ -659,14 +659,9 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 			 * ?>
 			 */
 			$profile_privacy = apply_filters( 'um_profile_privacy_options', array(
-				'Everyone'  => __( 'Everyone', 'ultimate-member' ),
-				'Only me'   => __( 'Only me', 'ultimate-member' )
+				__( 'Everyone', 'ultimate-member' ),
+				__( 'Only me', 'ultimate-member' )
 			) );
-
-			/*
-			 * it's important create key for array equals value of 'metakey'.
-			 *
-			 */
 
 			$this->predefined_fields = array(
 
@@ -739,15 +734,15 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 				),
 
 				'user_url' => array(
-					'title' => __('Website URL','ultimate-member'),
-					'metakey' => 'user_url',
-					'type' => 'url',
-					'label' => __('Website URL','ultimate-member'),
-					'required' => 1,
-					'public' => 1,
-					'editable' => 1,
-					'validate' => 'url'
-				),
+                    'title' => __('Website URL','ultimate-member'),
+                    'metakey' => 'user_url',
+                    'type' => 'url',
+                    'label' => __('Website URL','ultimate-member'),
+                    'required' => 1,
+                    'public' => 1,
+                    'editable' => 1,
+                    'validate' => 'url'
+                ),
 
 				'user_registered' => array(
 					'title' => __('Registration Date','ultimate-member'),
@@ -760,7 +755,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'edit_forbidden' => 1,
 				),
 
-				'_um_last_login' => array(
+				'last_login' => array(
 					'title' => __('Last Login','ultimate-member'),
 					'metakey' => '_um_last_login',
 					'type' => 'text',
@@ -930,7 +925,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'validate' => 'instagram_url',
 					'url_text' => 'Instagram',
 					'advanced' => 'social',
-					'color' => 'radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%)',
+					'color' => '#3f729b',
 					'match' => 'https://instagram.com/',
 				),
 
@@ -985,7 +980,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'match' => 'https://soundcloud.com/',
 				),
 
-				'vkontakte' => array(
+				'vk' => array(
 					'title' => __('VKontakte','ultimate-member'),
 					'metakey' => 'vkontakte',
 					'type' => 'url',
@@ -1093,6 +1088,13 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'private_use' => true,
 				),
 
+				'password_reset_text' => array(
+					'title' => __('Password Reset','ultimate-member'),
+					'type' => 'block',
+					'content' => '<div style="text-align:center">' . __('To reset your password, please enter your email address or username below','ultimate-member'). '</div>',
+					'private_use' => true,
+				),
+
 				'username_b' => array(
 					'title' => __('Username or E-mail','ultimate-member'),
 					'metakey' => 'username_b',
@@ -1115,7 +1117,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'required' => 0,
 					'public' => 1,
 					'editable' => 1,
-					'default' => 'Everyone',
+					'default' => __('Everyone','ultimate-member'),
 					'options' => $profile_privacy,
 					'allowclear' => 0,
 					'account_only' => true,
@@ -1216,47 +1218,6 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 
 
 		/**
-		 * Get all fields without metakeys
-		 *
-		 * @since 2.0.56
-		 *
-		 * @return array
-		 */
-		function get_fields_without_metakey() {
-			$fields_without_metakey = array(
-				'block',
-				'shortcode',
-				'spacing',
-				'divider',
-				'group'
-			);
-
-
-			/**
-			 * UM hook
-			 *
-			 * @type filter
-			 * @title um_fields_without_metakey
-			 * @description Field Types without meta key
-			 * @input_vars
-			 * [{"var":"$types","type":"array","desc":"Field Types"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage add_filter( 'um_fields_without_metakey', 'function_name', 10, 1 );
-			 * @example
-			 * <?php
-			 * add_filter( 'um_fields_without_metakey', 'my_fields_without_metakey', 10, 1 );
-			 * function my_fields_without_metakey( $types ) {
-			 *     // your code here
-			 *     return $types;
-			 * }
-			 * ?>
-			 */
-			return apply_filters( 'um_fields_without_metakey', $fields_without_metakey );
-		}
-
-
-		/**
 		 * May be used to show a dropdown, or source for user meta
 		 *
 		 * @param null $exclude_types
@@ -1266,10 +1227,32 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 		 */
 		function all_user_fields( $exclude_types = null, $show_all = false ) {
 
-			$fields_without_metakey = $this->get_fields_without_metakey();
-			$fields_without_metakey = apply_filters( 'um_all_user_fields_without_metakey', $fields_without_metakey );
+			$fields_without_metakey = array('block','shortcode','spacing','divider','group');
+			remove_filter('um_fields_without_metakey', 'um_user_tags_requires_no_metakey');
 
-			if ( ! $show_all ) {
+			/**
+			 * UM hook
+			 *
+			 * @type filter
+			 * @title um_fields_without_metakey
+			 * @description Extend Fields without metakey
+			 * @input_vars
+			 * [{"var":"$fields","type":"array","desc":"Fields without metakey"}]
+			 * @change_log
+			 * ["Since: 2.0"]
+			 * @usage add_filter( 'um_fields_without_metakey', 'function_name', 10, 1 );
+			 * @example
+			 * <?php
+			 * add_filter( 'um_fields_without_metakey', 'my_fields_without_metakey', 10, 1 );
+			 * function my_fields_without_metakey( $fields ) {
+			 *     // your code here
+			 *     return $fields;
+			 * }
+			 * ?>
+			 */
+			$fields_without_metakey = apply_filters( 'um_fields_without_metakey', $fields_without_metakey );
+
+			if ( !$show_all ) {
 				$this->fields_dropdown = array('image','file','password','rating');
 				$this->fields_dropdown = array_merge( $this->fields_dropdown, $fields_without_metakey );
 			} else {
@@ -1315,6 +1298,8 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 			}
 
 			$all = UM()->fields()->array_sort_by_column( $all, 'title');
+
+			$all = array( 0 => '') + $all;
 
 			return $all;
 		}

@@ -1,10 +1,8 @@
 <?php
 namespace um\core;
 
-
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) exit;
-
 
 if ( ! class_exists( 'um\core\Mail' ) ) {
 
@@ -39,23 +37,6 @@ if ( ! class_exists( 'um\core\Mail' ) ) {
 
 
 		/**
-		 * Mandrill compatibility
-		 *
-		 * @param $nl2br
-		 * @param string $message
-		 * @return bool
-		 */
-		function mandrill_nl2br( $nl2br, $message = '' ) {
-			// text emails
-			if ( ! UM()->options()->get( 'email_html' ) ) {
-				$nl2br = true;
-			}
-
-			return $nl2br;
-		}
-
-
-		/**
 		 * Init paths for email notifications
 		 */
 		function init_paths() {
@@ -85,73 +66,68 @@ if ( ! class_exists( 'um\core\Mail' ) ) {
 
 
 		/**
-		 * Check blog ID on multisite, return '' if single site
+		 * Mandrill compatibility
 		 *
-		 * @return string
+		 * @param $nl2br
+		 * @param string $message
+		 * @return bool
 		 */
-		function get_blog_id() {
-			$blog_id = '';
-			if ( is_multisite() ) {
-				$blog_id = '/' . get_current_blog_id();
+		function mandrill_nl2br( $nl2br, $message = '' ) {
+			// text emails
+			if ( ! UM()->options()->get( 'email_html' ) ) {
+				$nl2br = true;
 			}
 
-			return $blog_id;
+			return $nl2br;
 		}
 
 
 		/**
-		 * Locate a template and return the path for inclusion.
+		 * Send Email function
 		 *
-		 * @access public
-		 * @param string $template_name
-		 * @return string
+		 * @param string $email
+		 * @param null $template
+		 * @param array $args
 		 */
-		function locate_template( $template_name ) {
-			// check if there is template at theme folder
-			$blog_id = $this->get_blog_id();
+		function send( $email, $template, $args = array() ) {
 
-			//get template file from current blog ID folder
-			$template = locate_template( array(
-				trailingslashit( 'ultimate-member/email' . $blog_id ) . $template_name . '.php'
-			) );
+			if ( ! is_email( $email ) ) return;
+			if ( UM()->options()->get( $template . '_on' ) != 1 ) return;
 
-			//if there isn't template at theme folder for current blog ID get template file from theme folder
-			if ( is_multisite() && ! $template ) {
-				$template = locate_template( array(
-					trailingslashit( 'ultimate-member/email' ) . $template_name . '.php'
-				) );
-			}
+			$this->attachments = null;
+			$this->headers = 'From: '. UM()->options()->get('mail_from') .' <'. UM()->options()->get('mail_from_addr') .'>' . "\r\n";
 
-			//if there isn't template at theme folder get template file from plugin dir
-			if ( ! $template ) {
-				$path = ! empty( $this->path_by_slug[ $template_name ] ) ? $this->path_by_slug[ $template_name ] : um_path . 'templates/email';
-				$template = trailingslashit( $path ) . $template_name . '.php';
-			}
-
-			// Return what we found.
 			/**
 			 * UM hook
 			 *
 			 * @type filter
-			 * @title um_locate_email_template
-			 * @description Change email notification template path
+			 * @title um_email_send_subject
+			 * @description Change email notification subject
 			 * @input_vars
-			 * [{"var":"$template","type":"string","desc":"Template Path"},
-			 * {"var":"$template_name","type":"string","desc":"Template Name"}]
+			 * [{"var":"$subject","type":"string","desc":"Subject"},
+			 * {"var":"$key","type":"string","desc":"Template Key"}]
 			 * @change_log
 			 * ["Since: 2.0"]
 			 * @usage
-			 * <?php add_filter( 'um_locate_email_template', 'function_name', 10, 2 ); ?>
+			 * <?php add_filter( 'um_email_send_subject', 'function_name', 10, 2 ); ?>
 			 * @example
 			 * <?php
-			 * add_filter( 'um_locate_email_template', 'my_locate_email_template', 10, 2 );
-			 * function my_email_template_body_attrs( $template, $template_name ) {
+			 * add_filter( 'um_email_send_subject', 'my_email_send_subject', 10, 2 );
+			 * function my_email_send_subject( $subject, $key ) {
 			 *     // your code here
-			 *     return $template;
+			 *     return $paths;
 			 * }
 			 * ?>
 			 */
-			return apply_filters( 'um_locate_email_template', $template, $template_name );
+			$subject = apply_filters( 'um_email_send_subject', UM()->options()->get( $template . '_sub' ), $template );
+			$this->subject = um_convert_tags( $subject , $args );
+
+			$this->message = $this->prepare_template( $template, $args );
+
+			add_filter( 'wp_mail_content_type', array( &$this, 'set_content_type' ) );
+			// Send mail
+			wp_mail( $email, $this->subject, $this->message, $this->headers, $this->attachments );
+			remove_filter( 'wp_mail_content_type', array( &$this, 'set_content_type' )  );
 		}
 
 
@@ -333,22 +309,14 @@ if ( ! class_exists( 'um\core\Mail' ) ) {
 
 				<body <?php echo $body_attrs ?>>
 
-				<?php echo $this->get_email_template( $slug, $args ); ?>
+					<?php echo $this->get_email_template( $slug, $args ); ?>
 
 				</body>
 				</html>
 
 			<?php } else {
 
-				//strip tags in plain text email
-				//important don't use HTML in plain text emails!
-				$raw_email_template = $this->get_email_template( $slug, $args );
-				$plain_email_template = strip_tags( $raw_email_template );
-				if( $plain_email_template !== $raw_email_template ){
-					$plain_email_template = preg_replace( array('/&nbsp;/mi', '/^\s+/mi'), array(' ', ''), $plain_email_template );
-				}
-
-				echo $plain_email_template;
+				echo $this->get_email_template( $slug, $args );
 
 			}
 
@@ -380,76 +348,54 @@ if ( ! class_exists( 'um\core\Mail' ) ) {
 			 */
 			$message = apply_filters( 'um_email_send_message_content', $message, $slug, $args );
 
-			add_filter( 'um_template_tags_patterns_hook', array( &$this, 'add_placeholder' ), 10, 1 );
-			add_filter( 'um_template_tags_replaces_hook', array( &$this, 'add_replace_placeholder' ), 10, 1 );
-
 			// Convert tags in email template
 			return um_convert_tags( $message, $args );
 		}
 
 
 		/**
-		 * Send Email function
+		 * Locate a template and return the path for inclusion.
 		 *
-		 * @param string $email
-		 * @param null $template
-		 * @param array $args
+		 * @access public
+		 * @param string $template_name
+		 * @return string
 		 */
-		function send( $email, $template, $args = array() ) {
+		function locate_template( $template_name ) {
+			// check if there is template at theme folder
+			$template = locate_template( array(
+				trailingslashit( 'ultimate-member/email' ) . $template_name . '.php'
+			) );
 
-			if ( ! is_email( $email ) ) {
-				return;
+			//if there isn't template at theme folder get template file from plugin dir
+			if ( ! $template ) {
+				$path = ! empty( $this->path_by_slug[ $template_name ] ) ? $this->path_by_slug[ $template_name ] : um_path . 'templates/email';
+				$template = trailingslashit( $path ) . $template_name . '.php';
 			}
 
-			if ( UM()->options()->get( $template . '_on' ) != 1 ) {
-				return;
-			}
-
-			$this->attachments = null;
-			$this->headers = 'From: '. stripslashes( UM()->options()->get('mail_from') ) .' <'. UM()->options()->get('mail_from_addr') .'>' . "\r\n";
-
+			// Return what we found.
 			/**
 			 * UM hook
 			 *
 			 * @type filter
-			 * @title um_email_send_subject
-			 * @description Change email notification subject
+			 * @title um_locate_email_template
+			 * @description Change email notification template path
 			 * @input_vars
-			 * [{"var":"$subject","type":"string","desc":"Subject"},
-			 * {"var":"$key","type":"string","desc":"Template Key"}]
+			 * [{"var":"$template","type":"string","desc":"Template Path"},
+			 * {"var":"$template_name","type":"string","desc":"Template Name"}]
 			 * @change_log
 			 * ["Since: 2.0"]
 			 * @usage
-			 * <?php add_filter( 'um_email_send_subject', 'function_name', 10, 2 ); ?>
+			 * <?php add_filter( 'um_locate_email_template', 'function_name', 10, 2 ); ?>
 			 * @example
 			 * <?php
-			 * add_filter( 'um_email_send_subject', 'my_email_send_subject', 10, 2 );
-			 * function my_email_send_subject( $subject, $key ) {
+			 * add_filter( 'um_locate_email_template', 'my_locate_email_template', 10, 2 );
+			 * function my_email_template_body_attrs( $template, $template_name ) {
 			 *     // your code here
-			 *     return $paths;
+			 *     return $template;
 			 * }
 			 * ?>
 			 */
-
-			add_filter( 'um_template_tags_patterns_hook', array( UM()->mail(), 'add_placeholder' ), 10, 1 );
-			add_filter( 'um_template_tags_replaces_hook', array( UM()->mail(), 'add_replace_placeholder' ), 10, 1 );
-
-			$subject = apply_filters( 'um_email_send_subject', UM()->options()->get( $template . '_sub' ), $template );
-
-			$subject = wp_unslash( um_convert_tags( $subject , $args ) );
-
-			$this->subject = html_entity_decode( $subject, ENT_QUOTES, 'UTF-8' ); 
-
-			$this->message = $this->prepare_template( $template, $args );
-
-			if ( UM()->options()->get( 'email_html' ) ) {
-				$this->headers .= "Content-Type: text/html\r\n";
-			} else {
-				$this->headers .= "Content-Type: text/plain\r\n";
-			}
-
-			// Send mail
-			wp_mail( $email, $this->subject, $this->message, $this->headers, $this->attachments );
+			return apply_filters( 'um_locate_email_template', $template, $template_name );
 		}
 
 
@@ -489,24 +435,20 @@ if ( ! class_exists( 'um\core\Mail' ) ) {
 		 *
 		 * @access public
 		 * @param string $template_name
+		 * @param bool $html
 		 * @return string
 		 */
-		function template_in_theme( $template_name ) {
+		function template_in_theme( $template_name, $html = false ) {
 			$template_name_file = $this->get_template_filename( $template_name );
+			$ext = ! $html ? '.php' : '.html';
 
-			$blog_id = $this->get_blog_id();
-
-			// check if there is template at theme blog ID folder
+			// check if there is template at theme folder
 			$template = locate_template( array(
-				trailingslashit( 'ultimate-member/email' . $blog_id ) . $template_name_file . '.php'
+				trailingslashit( 'ultimate-member/email' ) . $template_name_file . $ext
 			) );
 
 			// Return what we found.
-			if ( get_template_directory() === get_stylesheet_directory() ) {
-				return ! $template ? false : true;
-			} else {
-				return strstr( $template, get_stylesheet_directory() );
-			}
+			return ! $template ? false : true;
 		}
 
 
@@ -514,26 +456,24 @@ if ( ! class_exists( 'um\core\Mail' ) ) {
 		 * Method returns expected path for template
 		 *
 		 * @access public
-		 *
 		 * @param string $location
 		 * @param string $template_name
-		 *
+		 * @param bool $html
 		 * @return string
 		 */
-		function get_template_file( $location, $template_name ) {
+		function get_template_file( $location, $template_name, $html = false ) {
 			$template_path = '';
 			$template_name_file = $this->get_template_filename( $template_name );
 
+			$ext = ! $html ? '.php' : '.html';
+
 			switch( $location ) {
 				case 'theme':
-					//save email template in blog ID folder if we use multisite
-					$blog_id = $this->get_blog_id();
-
-					$template_path = trailingslashit( get_stylesheet_directory() . '/ultimate-member/email' . $blog_id ). $template_name_file . '.php';
+					$template_path = trailingslashit( get_stylesheet_directory() . '/ultimate-member/email' ). $template_name_file . $ext;
 					break;
 				case 'plugin':
 					$path = ! empty( $this->path_by_slug[ $template_name ] ) ? $this->path_by_slug[ $template_name ] : um_path . 'templates/email';
-					$template_path = trailingslashit( $path ) . $template_name . '.php';
+					$template_path = trailingslashit( $path ) . $template_name . $ext;
 					break;
 			}
 
@@ -542,12 +482,28 @@ if ( ! class_exists( 'um\core\Mail' ) ) {
 
 
 		/**
+		 * Set email content type
+		 *
+		 *
+		 * @param $content_type
+		 * @return string
+		 */
+		function set_content_type( $content_type ) {
+			if ( UM()->options()->get( 'email_html' ) ) {
+				return 'text/html';
+			} else {
+				return 'text/plain';
+			}
+		}
+
+
+		/**
 		 * Ajax copy template to the theme
 		 *
-		 * @param string $template
+		 * @param bool $template
 		 * @return bool
 		 */
-		function copy_email_template( $template ) {
+		function copy_email_template( $template = false ) {
 
 			$in_theme = $this->template_in_theme( $template );
 			if ( $in_theme ) {
@@ -581,40 +537,23 @@ if ( ! class_exists( 'um\core\Mail' ) ) {
 
 
 		/**
-		 * UM Placeholders for site url, admin email, submit registration
-		 *
-		 * @param $placeholders
-		 *
-		 * @return array
+		 * Delete Email Notification Template
 		 */
-		function add_placeholder( $placeholders ) {
-			$placeholders[] = '{user_profile_link}';
-			$placeholders[] = '{site_url}';
-			$placeholders[] = '{admin_email}';
-			$placeholders[] = '{submitted_registration}';
-			$placeholders[] = '{login_url}';
-			$placeholders[] = '{password}';
-			$placeholders[] = '{account_activation_link}';
-			return $placeholders;
-		}
+		function delete_email_template() {
+			$template = $_POST['email_key'];
 
+			$in_theme = $this->template_in_theme( $template );
+			if ( ! $in_theme ) {
+				wp_send_json_error( new \WP_Error( 'template_in_theme', __( 'Template does not exists in theme', 'ultimate-member' ) ) );
+			}
 
-		/**
-		 * UM Replace Placeholders for site url, admin email, submit registration
-		 *
-		 * @param $replace_placeholders
-		 *
-		 * @return array
-		 */
-		function add_replace_placeholder( $replace_placeholders ) {
-			$replace_placeholders[] = um_user_profile_url();
-			$replace_placeholders[] = get_bloginfo( 'url' );
-			$replace_placeholders[] = um_admin_email();
-			$replace_placeholders[] = um_user_submitted_registration();
-			$replace_placeholders[] = um_get_core_page( 'login' );
-			$replace_placeholders[] = esc_html__( 'Your set password', 'ultimate-member' );
-			$replace_placeholders[] = um_user( 'account_activation_link' );
-			return $replace_placeholders;
+			$theme_template_path = $this->get_template_file( 'theme', $template );
+
+			if ( unlink( $theme_template_path ) ) {
+				wp_send_json_success();
+			} else {
+				wp_send_json_error( new \WP_Error( 'template_not_exists', __( 'Can not remove template from theme', 'ultimate-member' ) ) );
+			}
 		}
 	}
 }

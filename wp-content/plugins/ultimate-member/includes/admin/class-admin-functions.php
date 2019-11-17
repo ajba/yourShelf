@@ -23,21 +23,6 @@ if ( ! class_exists( 'um\admin\Admin_Functions' ) ) {
 
 
 		/**
-		 * Check wp-admin nonce
-		 *
-		 * @param bool $action
-		 */
-		function check_ajax_nonce( $action = false ) {
-			$nonce = isset( $_REQUEST['nonce'] ) ? $_REQUEST['nonce'] : '';
-			$action = empty( $action ) ? 'um-admin-nonce' : $action;
-
-			if ( ! wp_verify_nonce( $nonce, $action ) ) {
-				wp_send_json_error( esc_js( __( 'Wrong Nonce', 'ultimate-member' ) ) );
-			}
-		}
-
-
-		/**
 		 * Boolean check if we're viewing UM backend
 		 *
 		 * @return bool
@@ -46,25 +31,23 @@ if ( ! class_exists( 'um\admin\Admin_Functions' ) ) {
 			global $current_screen;
 			$screen_id = $current_screen->id;
 
-			$is_um_screen = false;
-
 			if ( strstr( $screen_id, 'ultimatemember') ||
 			     strstr( $screen_id, 'um_') ||
 			     strstr( $screen_id, 'user' ) ||
 			     strstr( $screen_id, 'profile' ) ||
 			     $screen_id == 'nav-menus' ) {
-				$is_um_screen = true;
+				return true;
 			}
 
 			if ( $this->is_plugin_post_type() ) {
-				$is_um_screen = true;
+				return true;
 			}
 
 			if ( $this->is_restricted_entity() ) {
-				$is_um_screen = true;
+				return true;
 			}
 
-			return apply_filters( 'um_is_ultimatememeber_admin_screen', $is_um_screen );
+			return false;
 		}
 
 

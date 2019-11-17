@@ -166,10 +166,6 @@ a.um-delete{ color: #a00; }
 	text-shadow: none !important;
 }
 
-.ui-tooltip.um_tooltip a {
-	color: #eeeeee !important;
-}
-
 .um_tooltip.dashicons,
 .um_tooltip.dashicons:before {
 	height:22px;
@@ -202,9 +198,3 @@ a.um-delete{ color: #a00; }
 	margin-top: 2px !important;
 	margin-bottom: 2px !important;
 }
-
-.um_hidden_notice,
-.um_block_settings_hide {
-	display: none;
-}
-

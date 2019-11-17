@@ -1,6 +1,3 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
-
-
 <div class="um-admin-metabox">
 
 	<?php foreach ( UM()->roles()->get_roles( __( 'Default', 'ultimate-member' ) ) as $key => $value ) {
@@ -83,7 +80,7 @@
 			array(
 				'id'		    => '_um_register_secondary_btn_word',
 				'type'		    => 'text',
-				'label'    		=> __( 'Secondary Button Text', 'ultimate-member' ),
+				'label'    		=> __( 'Primary Button Text', 'ultimate-member' ),
 				'tooltip'    	=> __( 'Customize the button text', 'ultimate-member' ),
 				'value' 		=> UM()->query()->get_meta_value( '_um_register_secondary_btn_word', null, UM()->options()->get( 'register_secondary_btn_word' ) ),
 				'conditional'	=> array( '_um_register_secondary_btn', '=', 1 )
