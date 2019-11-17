@@ -1,4 +1,8 @@
 <?php
+
+define('WP_HOME','https://pgpidb2.herokuapp.com');
+define('WP_SITEURL','https://pgpidb2.herokuapp.com');
+
 /**
  * The base configuration for WordPress
  *
