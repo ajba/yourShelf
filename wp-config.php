@@ -24,16 +24,16 @@ define('WP_SITEURL','http://pgpidb2.herokuapp.com');
 
 // ** MySQL settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
-define( 'DB_NAME', 'byjjfytb2fmc4jubv2x1' );
+define( 'DB_NAME', 'bkils9e6oitr8mbeoufm' );
 
 /** MySQL database username */
-define( 'DB_USER', 'uqi6rbudujxcmo8l' );
+define( 'DB_USER', 'uzxzx9qaft34mxhc' );
 
 /** MySQL database password */
-define( 'DB_PASSWORD', 'picwUwlPvvlZ2SUnjIUE' );
+define( 'DB_PASSWORD', '79UO8KMG5j44k4dagkKJ' );
 
 /** MySQL hostname */
-define( 'DB_HOST', 'byjjfytb2fmc4jubv2x1-mysql.services.clever-cloud.com' );
+define( 'DB_HOST', 'bkils9e6oitr8mbeoufm-mysql.services.clever-cloud.com' );
 
 /** Database Charset to use in creating database tables. */
 define( 'DB_CHARSET', 'utf8mb4' );
