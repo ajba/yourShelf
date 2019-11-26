@@ -7,12 +7,6 @@
 
 require( ABSPATH . WPINC . '/option.php' );
 
-/*
-No muestra el mensaje de confirmacion via email
-*/
-
-add_filter( 'wpmu_signup_user_notification', '__return_false' );
-
 /**
  * Convert given date string into a different format.
  *
