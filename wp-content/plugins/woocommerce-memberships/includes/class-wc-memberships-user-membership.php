@@ -57,9 +57,6 @@ class WC_Memberships_User_Membership {
 	/** @var \WP_Post User Membership post object */
 	public $post;
 
-	/** @var \WC_Product the product that granted access */
-	private $product;
-
 	/** @var string Membership type */
 	protected $type = '';
 
@@ -86,6 +83,9 @@ class WC_Memberships_User_Membership {
 
 	/** @var string previous owners meta */
 	protected $previous_owners_meta = '';
+
+	/** @var WC_Product the product object */
+	private $product;
 
 
 	/**
@@ -325,10 +325,6 @@ class WC_Memberships_User_Membership {
 		}
 
 		if ( ! empty( $end_timestamp ) ) {
-
-			// for fixed date memberships set end date to the end of the day
-			$end_timestamp = $this->get_plan() && $this->plan->is_access_length_type( 'fixed' ) ? wc_memberships_adjust_date_by_timezone( strtotime( 'tomorrow', $end_timestamp ), 'timestamp', wc_timezone_string() ) : $end_timestamp;
-
 			$end_date = date( 'Y-m-d H:i:s', (int) $end_timestamp );
 		}
 
@@ -1051,9 +1047,6 @@ class WC_Memberships_User_Membership {
 	 *
 	 * If the membership is not in the active period it will move to expired
 	 *
-	 * Note: this checks whether member has access, according to plan rules, 'active'
-	 * status is not the only status that can grant access to membership holder
-	 *
 	 * @since 1.6.4
 	 * @return bool
 	 */
@@ -1101,7 +1094,7 @@ class WC_Memberships_User_Membership {
 	/**
 	 * Check if membership has started, but not expired
 	 *
-	 * Note: this does not check the User Membership access status itself
+	 * Note: this does not check the active User Membership status itself
 	 * @see \WC_Memberships_User_Membership::is_active()
 	 *
 	 * @since 1.0.0
@@ -1365,14 +1358,12 @@ class WC_Memberships_User_Membership {
 		// make sure the original product is the first in array
 		if ( $original_product && $original_product->is_purchasable() ) {
 
-			$renewal_products[ SV_WC_Plugin_Compatibility::product_get_id( $original_product ) ] = $original_product;
+			$renewal_products = array( $this->get_product_id() => $original_product );
 		}
 
-		$plan = $this->get_plan();
+		if ( $this->get_plan() && ( $products = $this->get_plan()->get_products() ) ) {
 
-		// get all the other purchasable products according to the plan settings
-		if ( $plan && ( $products = $plan->get_products() ) ) {
-
+			// get all the other purchasable products
 			foreach ( $products as $product_id => $product ) {
 
 				if ( $product->is_purchasable() ) {
@@ -1409,6 +1400,7 @@ class WC_Memberships_User_Membership {
 				// (note we don't check for the membership $type property
 				// but the plan's access method)
 				$can_be_renewed = false;
+
 			}
 
 			if ( $membership_plan->is_access_length_type( 'fixed' ) ) {
@@ -1420,6 +1412,7 @@ class WC_Memberships_User_Membership {
 				if ( ! empty( $fixed_end_date ) && current_time( 'timestamp', true ) > $fixed_end_date ) {
 					$can_be_renewed = false;
 				}
+
 			}
 
 			if ( $membership_plan->has_products() ) {

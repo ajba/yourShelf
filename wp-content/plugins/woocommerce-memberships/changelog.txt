@@ -1,34 +1,5 @@
 *** WooCommerce Memberships Changelog ***
 
-2016.11.23 - version 1.7.3
- * Fix - Prevent errors from happening when upgrading or switching subscriptions under some circumstances
- * Fix - When using price suffix merge tags for displaying the price inclusive or exclusive of taxes, the amount displayed in the suffix could be incorrect for logged in members
- * Fix - When entering prices excluding taxes and displaying prices inclusive of taxes on the shop, the incorrect tax amount might be calculated
- * Fix - Update Bookings compatibility check for v1.9.11 due to main plugin file renaming
- * Fix - When restricting the whole content and using qTranslate X plugin, a server error could be triggered when visiting the front end
- * Fix - In some circumstances a customer with multiple plans wouldn't see a "View" button to access to some plan content from the Member Area's "My Content" section
- * Fix - Ensure templates in Member Area when viewing an individual plan content are wrapped in a container div having a 'woocommerce' CSS class
- * Misc - Improve compatibility with Dynamic Pricing when used with member discounts
-
-2016.10.25 - version 1.7.2
- * Fix - Ensure variable product price display doesn't double count any membership discounts
- * Fix - If a Membership Plan has no product discount rule and only product restriction rules, products may not appear listed in "My Products" page in Member Area
- * Fix - When renewing a Membership Plan where the product that originally granted access is a product variation, a different variation or the parent variable product might be added to the cart when following a renewal link
- * Misc - Improve translations handling
-
-2016.10.06 - version 1.7.1
- * Tweak - Add 'has_access' column to members CSV export to improve data segmentation of active vs inactive user memberships
- * Fix - Errors on "My Memberships" list for fixed-date memberships that were manually added
- * Fix - "Free Trial" membership status should have access to the member area, not just access to restricted content
- * Fix - Retain access restrictions for memberships with access starting after the free trial period, when the linked subscription is pending cancellation (membership stays in free trial until subscription is effectively cancelled)
- * Fix - Some notices may be thrown by some third party plugins which are hooking too early into 'pre_get_posts'
- * Fix - When a membership plan restricts a product category, and "Hide restricted products" setting is enabled, the core Product Categories widget will still display the restricted empty category for non-members, even if the widget is set to "hide empty categories"
- * Fix - Ensure custom price suffixes and tax display mode settings are honoured while displaying prices for logged in members
- * Fix - "Free!" price label might not have shown for logged in members for products with 0 price
- * Fix - Individual product variations added to restricted product rules or member discounts for a plan are not listed along other products in Member Area
- * Fix - Do not show "Next" button in Member Area content last pages if there is no more membership content to show
- * Fix - Resolve a compatibility issue with WooCommerce Subscriptions versions below 2.0.0
-
 2016.09.22 - version 1.7.0
  * Feature - New Membership Ending Soon, Membership Ended, and Membership Renewal Reminder emails can be sent to plan members to remind them about their membership expiration events
  * Feature - Allow Free Memberships where the access to a Membership Plan is granted upon user registration

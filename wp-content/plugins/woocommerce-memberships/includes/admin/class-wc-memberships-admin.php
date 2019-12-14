@@ -33,6 +33,12 @@ defined( 'ABSPATH' ) or exit;
 class WC_Memberships_Admin {
 
 
+	/** @var array tab URLs / titles */
+	protected $tabs = array();
+
+	/** @var array Admin screen IDs used by Memberships */
+	protected $screen_ids = array();
+
 	/** @var \SV_WP_Admin_Message_Handler instance */
 	public $message_handler; // this is passed from \WC_Memberships and can't be protected
 
@@ -61,6 +67,11 @@ class WC_Memberships_Admin {
 	 * @since 1.0.0
 	 */
 	public function __construct() {
+
+		// admin screens used by Memberships
+		$this->screen_ids = $this->get_screen_ids();
+		// tabs being shown at the top of Memberships admin
+		$this->tabs       = $this->get_tabs();
 
 		// init settings page
 		add_filter( 'woocommerce_get_settings_pages', array( $this, 'add_settings_page' ) );
@@ -163,6 +174,11 @@ class WC_Memberships_Admin {
 	 * @return array
 	 */
 	public function get_screen_ids() {
+
+		if ( ! empty( $this->screen_ids ) ) {
+			return $this->screen_ids;
+		}
+
 		return array(
 			'wc_user_membership',
 			'wc_membership_plan',
@@ -181,6 +197,11 @@ class WC_Memberships_Admin {
 	 * @return array
 	 */
 	private function get_tabs() {
+
+		if ( ! empty( $this->tabs ) ) {
+			return $this->tabs;
+		}
+
 		return array(
 			'members'       => array(
 				'title' => __( 'Members', 'woocommerce-memberships' ),
@@ -525,7 +546,7 @@ class WC_Memberships_Admin {
 	 * @return array
 	 */
 	public function load_wc_scripts( $screen_ids ) {
-		return array_merge( $screen_ids, $this->get_screen_ids() );
+		return array_merge( $screen_ids, $this->screen_ids );
 	}
 
 
@@ -604,8 +625,7 @@ class WC_Memberships_Admin {
 					$current_tab = apply_filters( 'wc_memberships_admin_current_tab', '' );
 				?>
 				<h2 class="nav-tab-wrapper woo-nav-tab-wrapper">
-					<?php $tabs = $this->get_tabs(); ?>
-					<?php foreach ( $tabs as $tab_id => $tab ) : ?>
+					<?php foreach ( $this->tabs as $tab_id => $tab ) : ?>
 						<?php $class = ( $tab_id === $current_tab ) ? array( 'nav-tab', 'nav-tab-active' ) : array( 'nav-tab' ); ?>
 						<?php printf( '<a href="%1$s" class="%2$s">%3$s</a>', esc_url( $tab['url'] ), implode( ' ', array_map( 'sanitize_html_class', $class ) ), esc_html( $tab['title'] ) ); ?>
 					<?php endforeach; ?>
@@ -1378,7 +1398,7 @@ class WC_Memberships_Admin {
 			/** @deprecated since 1.6.0 */
 			case 'tabs' :
 				_deprecated_function( "{$class}->{$property}", $deprecated_since_1_6_0 );
-				return $this->get_tabs();
+				return $this->tabs;
 
 			default :
 				// you're probably doing it wrong

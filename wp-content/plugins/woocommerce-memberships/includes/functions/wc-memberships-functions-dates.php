@@ -230,3 +230,4 @@ function wc_memberships_adjust_date_by_timezone( $date, $format = 'mysql', $time
 
 	return 'timestamp' === $format ? $timestamp + $offset : date( $format, $timestamp + $offset );
 }
+

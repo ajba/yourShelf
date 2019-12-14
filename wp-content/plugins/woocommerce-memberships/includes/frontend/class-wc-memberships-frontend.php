@@ -261,7 +261,7 @@ class WC_Memberships_Frontend {
 			/* this filter is documented in /includes/class-wc-memberships-membership-plan.php */
 			$renew = (bool) apply_filters( 'wc_memberships_renew_membership', (bool) $product_for_renewal, $user_membership->get_plan(), array(
 				'user_id'    => $user_membership->get_user_id(),
-				'product_id' => $product_for_renewal->id,
+				'product_id' => $user_membership->get_product_id(),
 				'order_id'   => $user_membership->get_order_id(),
 			) );
 
@@ -269,14 +269,7 @@ class WC_Memberships_Frontend {
 
 				// empty the cart and add the one product to renew this membership
 				wc_empty_cart();
-
-				// set up variation data (if needed) before adding to the cart
-				$variation_id         = $product_for_renewal->is_type( 'variation' ) ? $product_for_renewal->variation_id : 0;
-				$variation_attributes = $product_for_renewal->is_type( 'variation' ) ? wc_get_product_variation_attributes( $variation_id ) : array();
-
-				// add the product to the cart
-				WC()->cart->add_to_cart( $product_for_renewal->id, 1, $variation_id, $variation_attributes );
-
+				WC()->cart->add_to_cart( $product_for_renewal->id, 1 );
 				// then redirect to checkout instead of my account page
 				$redirect_url = wc_get_checkout_url();
 

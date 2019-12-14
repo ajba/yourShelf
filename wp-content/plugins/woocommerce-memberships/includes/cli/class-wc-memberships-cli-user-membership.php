@@ -495,7 +495,6 @@ class WC_Memberships_CLI_User_Membership extends WC_Memberships_CLI_Command {
 				'plan_id'           => $user_membership->get_plan_id(),
 				'plan'              => $user_membership->get_plan()->get_name(),
 				'status'            => $user_membership->get_status(),
-				'has_access'        => $user_membership->is_active() ? 'yes' : 'no',
 				'paused_date'       => $user_membership->get_paused_date(),
 				'order_id'          => $user_membership->get_order_id(),
 				'product_id'        => $user_membership->get_product_id(),

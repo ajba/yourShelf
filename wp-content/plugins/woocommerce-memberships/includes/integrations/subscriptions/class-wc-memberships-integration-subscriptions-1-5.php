@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) or exit;
  * @deprecated
  * @since 1.6.0
  */
-class WC_Memberships_Integration_Subscriptions_1_5 extends WC_Memberships_Integration_Subscriptions_Abstract {
+class WC_Memberships_Integration_Subscriptions_1_5 extends WC_Memberships_Integration_Subscriptions {
 
 
 	/**
@@ -56,27 +56,6 @@ class WC_Memberships_Integration_Subscriptions_1_5 extends WC_Memberships_Integr
 		add_action( 'subscription_deleted',     array( $this, 'handle_subscription_status_change' ), 10, 2 );
 
 		add_action( 'woocommerce_subscriptions_set_expiration_date', array( $this, 'update_membership_end_date' ), 10, 3 );
-	}
-
-
-	/**
-	 * Get a Subscription
-	 *
-	 * @deprecated
-	 *
-	 * @since 1.7.1
-	 * @param int|string|\WC_Subscription $subscription
-	 * @return array|int|\WC_Subscription
-	 */
-	public function get_subscription( $subscription ) {
-
-		if ( is_object( $subscription ) || is_int( $subscription ) ) {
-			$subscription = parent::get_subscription( $subscription );
-		} elseif ( is_string( $subscription ) ) {
-			$subscription = WC_Subscriptions_Manager::get_subscription( $subscription );
-		}
-
-		return $subscription;
 	}
 
 

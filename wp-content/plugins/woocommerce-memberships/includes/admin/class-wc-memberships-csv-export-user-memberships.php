@@ -156,7 +156,6 @@ class WC_Memberships_CSV_Export_User_Memberships extends WC_Memberships_Import_E
 			'membership_plan'       => 'membership_plan',
 			'membership_plan_slug'  => 'membership_plan_slug',
 			'membership_status'     => 'membership_status',
-			'has_access'            => 'has_access',
 			'product_id'            => 'product_id',
 			'order_id'              => 'order_id',
 			'member_since'          => 'member_since',
@@ -723,10 +722,6 @@ class WC_Memberships_CSV_Export_User_Memberships extends WC_Memberships_Import_E
 
 					case 'membership_status' :
 						$value = $user_membership->get_status();
-					break;
-
-					case 'has_access' :
-						$value = $user_membership->is_active() ? strtolower( __( 'Yes', 'woocommerce-memberships' ) ) : strtolower( __( 'No', 'woocommerce-memberships' ) );
 					break;
 
 					case 'product_id' :

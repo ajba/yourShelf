@@ -47,7 +47,7 @@ class WC_Memberships_Admin_Membership_Plans {
 	public function __construct() {
 
 		// plans admin screen columns
-		add_filter( 'manage_edit-wc_membership_plan_columns',        array( $this, 'customize_columns' ) );
+		add_filter( 'manage_edit-wc_membership_plan_columns',       array( $this, 'customize_columns' ) );
 		add_action( 'manage_wc_membership_plan_posts_custom_column', array( $this, 'custom_column_content' ), 10, 2 );
 
 		// disable some bulk features not applicable
@@ -82,11 +82,6 @@ class WC_Memberships_Admin_Membership_Plans {
 		unset( $columns['date'], $columns['cb'] );
 
 		$columns['slug']    = __( 'Slug', 'woocommerce-memberships' );
-
-		if ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) {
-			$columns['rules'] = __( 'Rules', 'woocommerce-memberships' );
-		}
-
 		$columns['length']  = __( 'Access length', 'woocommerce-memberships' );
 		$columns['access']  = __( 'Access from', 'woocommerce-memberships' );
 		$columns['members'] = __( 'Members', 'woocommerce-memberships' );
@@ -125,31 +120,6 @@ class WC_Memberships_Admin_Membership_Plans {
 						echo '';
 					} else {
 						echo $membership_plan->get_human_access_length();
-					}
-
-				break;
-
-				case 'rules':
-
-					if ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) {
-
-						$content_restriction_rules = $membership_plan->get_content_restriction_rules();
-						$product_restriction_rules = $membership_plan->get_product_restriction_rules();
-						$purchasing_discount_rules = $membership_plan->get_purchasing_discount_rules();
-
-						$rules = array(
-							__( 'Restrict content', 'woocommerce-memberships' )     => ! empty( $content_restriction_rules ),
-							__( 'Restrict products', 'woocommerce-memberships' )    => ! empty( $product_restriction_rules ),
-							__( 'Purchasing discounts', 'woocommerce-memberships' ) => ! empty( $purchasing_discount_rules ),
-						);
-
-						foreach ( $rules as $label => $active ) {
-
-							$label = esc_html( $label );
-							$class = $active ? 'has-rules' : 'has-not-rules';
-
-							printf( "<span class='{$class}'>%s {$label}</span><br>", ! $active ? '&#x2717;' : '&#x2713;' );
-						}
 					}
 
 				break;

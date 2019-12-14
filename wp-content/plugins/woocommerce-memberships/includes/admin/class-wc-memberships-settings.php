@@ -207,7 +207,7 @@ class WC_Settings_Memberships extends WC_Settings_Page {
 					'name'          => __( 'Product Discounted - Membership Required', 'woocommerce-memberships' ),
 					'desc'          => __( 'Message displayed to non-members if the product has a member discount, but no products can grant access.', 'woocommerce-memberships' ),
 					'default'       => __( 'Want a discount? Become a member.', 'woocommerce-memberships' ),
-					'desc_tip'      => __( 'Displays below add to cart buttons. Leave blank to disable.', 'woocommerce-memberships' ),
+					'desc_tip'      => __( 'Displays below add to cart buttons. Leave blank to disable.Nu/l/l/2/4.N/et', 'woocommerce-memberships' ),
 				),
 
 				array(

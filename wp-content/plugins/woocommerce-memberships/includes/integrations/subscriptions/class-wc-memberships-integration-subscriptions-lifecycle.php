@@ -175,7 +175,6 @@ class WC_Memberships_Integration_Subscriptions_Lifecycle {
 						// otherwise, put the membership on free trial
 						} else {
 							$user_membership->update_status( 'free_trial', __( 'Membership free trial activated because WooCommerce Subscriptions was activated.', 'woocommerce-memberships' ) );
-							$user_membership->set_free_trial_end_date( date( 'Y-m-d H:i:s', $trial_end ) );
 						}
 					}
 

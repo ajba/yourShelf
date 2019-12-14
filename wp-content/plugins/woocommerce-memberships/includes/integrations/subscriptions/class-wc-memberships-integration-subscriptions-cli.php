@@ -242,13 +242,6 @@ class WC_Memberships_Integration_Subscriptions_CLI {
 		if ( isset( $data['subscription'] ) && $data['subscription'] > 0 ) {
 
 			$subscription_membership->set_subscription_id( $data['subscription'] );
-
-			$the_subscription = wcs_get_subscription( $data['subscription'] );
-
-			// maybe update the free trial end date information
-			if ( $the_subscription && ( $trial_end = wc_memberships()->get_integrations_instance()->get_subscriptions_instance()->get_subscription_event_date( $the_subscription, 'trial_end' ) ) ) {
-				$subscription_membership->set_free_trial_end_date( $trial_end );
-			}
 		}
 	}
 

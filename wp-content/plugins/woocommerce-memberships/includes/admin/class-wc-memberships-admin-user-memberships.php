@@ -98,12 +98,12 @@ class WC_Memberships_Admin_User_Memberships {
 		// remove title and date columns
 		unset( $columns['title'],  $columns['date'] );
 
-		$columns['title']        = __( 'Name', 'woocommerce-memberships' );         // member name column
-		$columns['email']        = __( 'Email', 'woocommerce-memberships' );        // member email
-		$columns['plan']         = __( 'Plan', 'woocommerce-memberships' );         // associated membership plan
-		$columns['status']       = __( 'Status', 'woocommerce-memberships' );       // user membership status
-		$columns['member_since'] = __( 'Member since', 'woocommerce-memberships' ); // membership created
-		$columns['expires']      = __( 'Expires', 'woocommerce-memberships' );      // expiration date-time
+		$columns['title']        = __( 'Name', 'woocommerce-memberships' ); // use title column as the member name column
+		$columns['email']        = __( 'Email', 'woocommerce-memberships' );
+		$columns['plan']         = __( 'Plan', 'woocommerce-memberships' );
+		$columns['status']       = __( 'Status', 'woocommerce-memberships' );
+		$columns['member_since'] = __( 'Member since', 'woocommerce-memberships' );
+		$columns['expires']      = __( 'Expires', 'woocommerce-memberships' );
 
 		return $columns;
 	}
@@ -280,6 +280,10 @@ class WC_Memberships_Admin_User_Memberships {
 		$time_format     = wc_time_format();
 
 		switch ( $column ) {
+
+			case 'name':
+				echo $user->display_name;
+			break;
 
 			case 'email':
 				echo $user->user_email;

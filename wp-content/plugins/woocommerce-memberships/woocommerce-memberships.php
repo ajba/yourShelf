@@ -5,7 +5,7 @@
  * Description: Sell memberships that provide access to restricted content, products, discounts, and more!
  * Author: WooThemes / SkyVerge
  * Author URI: http://www.woothemes.com/
- * Version: 1.7.3
+ * Version: 1.7.0
  * Text Domain: woocommerce-memberships
  * Domain Path: /i18n/languages/
  *
@@ -61,7 +61,7 @@ class WC_Memberships extends SV_WC_Plugin {
 
 
 	/** plugin version number */
-	const VERSION = '1.7.3';
+	const VERSION = '1.7.0';
 
 	/** @var WC_Memberships single instance of this plugin */
 	protected static $instance;
@@ -118,7 +118,6 @@ class WC_Memberships extends SV_WC_Plugin {
 			self::VERSION,
 			array(
 				'dependencies' => array( 'mbstring' ),
-				'text_domain'  => 'woocommerce-memberships',
 			)
 		);
 
@@ -363,7 +362,6 @@ class WC_Memberships extends SV_WC_Plugin {
 	 * @see \SV_WC_Plugin::load_translation()
 	 */
 	public function load_translation() {
-		// TODO since we are using text_domain in constructor args now, this is likely unnecessary, contents of the method should be removed by WC 2.7 compatibility or by the time the method itself is retired from the FW {FN 2016-10-19}
 		load_plugin_textdomain( 'woocommerce-memberships', false, dirname( plugin_basename( $this->get_file() ) ) . '/i18n/languages' );
 	}
 

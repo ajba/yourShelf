@@ -237,7 +237,7 @@ class WC_Memberships_Membership_Plans {
 			'days'   => __( 'Day(s)', 'woocommerce-memberships' ),
 			'weeks'  => __( 'Week(s)', 'woocommerce-memberships' ),
 			'months' => __( 'Month(s)', 'woocommerce-memberships' ),
-			'years'  => __( 'Year(s)', 'woocommerce-memberships' ),
+			'years'  => __( 'Year(s)', 'wooocommerce-memberships' ),
 		);
 
 		/**

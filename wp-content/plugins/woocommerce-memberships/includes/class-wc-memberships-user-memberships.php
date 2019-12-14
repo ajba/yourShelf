@@ -244,7 +244,7 @@ class WC_Memberships_User_Memberships {
 	 * @param int|\WP_User $user_id Optional, defaults to current user
 	 * @param int|string|\WC_Memberships_Membership_Plan $membership_plan Optional: membership plan id, object or slug;
 	 *                                                                    leave empty to check if the user is a member of any plan
-	 * @param bool|string $check_if_active Optional additional check to see if the member has currently active access (pass param as true or 'active') or delayed access (use 'delayed')
+	 * @param bool|string $check_if_active Optional additional check to see if the member is currently active (true or 'active') or 'delayed'
 	 * @param bool $cache Whether to use cached results (default true)
 	 * @return bool
 	 */
@@ -360,7 +360,7 @@ class WC_Memberships_User_Memberships {
 
 
 	/**
-	 * Check if user is a member with active access of one particular or any membership plan
+	 * Check if user is an active member of one particular or any membership plan
 	 *
 	 * @since 1.0.0
 	 * @param int|\WP_User $user_id Optional, defaults to current user
@@ -391,7 +391,7 @@ class WC_Memberships_User_Memberships {
 
 
 	/**
-	 * Check if user is either a member with active or delayed access
+	 * Check if user is either a member with active or delayed status
 	 * of one particular or any membership plan
 	 *
 	 * Note: this isn't the equivalent of doing `! wc_memberships_is_user_active_member()`
@@ -431,9 +431,9 @@ class WC_Memberships_User_Memberships {
 
 			foreach ( $user_memberships as $user_membership ) {
 
-				if ( ! $member_since || $member_since > $user_membership->get_start_date( 'timestamp' ) ) {
+				if ( ! $member_since || $member_since > $user_membership->get_local_start_date( 'timestamp' ) ) {
 
-					$member_since = $user_membership->get_start_date( 'timestamp' );
+					$member_since = $user_membership->get_local_start_date( 'timestamp' );
 				}
 			}
 		}
@@ -798,8 +798,7 @@ class WC_Memberships_User_Memberships {
 	/**
 	 * Callback for save_post when a user membership is created or updated
 	 *
-	 * Triggers `wc_memberships_user_membership_saved` action
-	 * @see \wc_memberships_create_user_membership()
+	 * Fires wc_memberships_user_membership_created action
 	 *
 	 * @internal
 	 *
@@ -817,10 +816,8 @@ class WC_Memberships_User_Memberships {
 			/**
 			 * Fires after a user has been granted membership access
 			 *
-			 * This hook is similar to `wc_memberships_user_membership_created`
+			 * This hook is similar to wc_memberships_user_membership_created
 			 * but will also fire when a membership is manually created in admin
-			 *
-			 * @see \wc_memberships_create_user_membership()
 			 *
 			 * @since 1.3.8
 			 * @param \WC_Memberships_Membership_Plan $membership_plan The plan that user was granted access to

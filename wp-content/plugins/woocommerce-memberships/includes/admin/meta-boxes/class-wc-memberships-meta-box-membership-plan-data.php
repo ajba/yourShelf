@@ -214,12 +214,27 @@ class WC_Memberships_Meta_Box_Membership_Plan_Data extends WC_Memberships_Meta_B
 						'target' => 'membership-plan-members-area',
 					),
 
-					'email_content'        => array(
+				) );
+
+				// output the emails tab and panel
+				// only if there is at least one email enabled
+				$emails         = wc_memberships()->get_emails_instance()->get_email_classes();
+				$emails_enabled = 0;
+
+				foreach ( $emails as $id => $email ) {
+
+					if ( 'WC_Memberships_User_Membership_Note_Email' !== $id && $email->is_enabled() ) {
+						$emails_enabled++;
+					}
+				}
+
+				if ( $emails_enabled >= 1 ) {
+
+					$membership_plan_data_tabs['email_content'] = array(
 						'label'  => __( 'Email Content', 'woocommerce-memberships' ),
 						'target' => 'membership-plan-email-content',
-					),
-
-				) );
+					);
+				}
 
 				// output the meta box navigation tabs
 				foreach ( $membership_plan_data_tabs as $key => $tab ) :
@@ -700,15 +715,16 @@ class WC_Memberships_Meta_Box_Membership_Plan_Data extends WC_Memberships_Meta_B
 
 		?>
 		<div id="membership-plan-email-content" class="panel woocommerce_options_panel">
-			<?php $emails  = wc_memberships()->get_emails_instance()->get_email_classes(); ?>
-			<?php $enabled = 0; ?>
-			<?php foreach ( $emails as $id => $email ) :
+			<?php
+
+			$emails = wc_memberships()->get_emails_instance()->get_email_classes();
+
+			foreach ( $emails as $id => $email ) :
 
 				if ( 'WC_Memberships_User_Membership_Note_Email' === $id || ! $email->is_enabled() ) {
 					continue;
 				}
 
-				$enabled++;
 				$email_settings_page_id = strtolower( $id );
 				$email_setting_link     = admin_url( "admin.php?page=wc-settings&tab=email&section={$email_settings_page_id}" );
 
@@ -723,14 +739,11 @@ class WC_Memberships_Meta_Box_Membership_Plan_Data extends WC_Memberships_Meta_B
 					) ); ?>
 
 				</div>
+				<?php
 
-			<?php endforeach; ?>
+			endforeach;
 
-			<?php if ( 0 === $enabled ) : ?>
-
-				<p><em><?php printf( __( 'It looks like you haven\'t enabled any of the Memberships emails. To configure email content for this plan, you need to enable at least one membership email from the %1$sWooCommerce Emails settings%2$s', 'woocommerce-memberships' ), '<a href="' . esc_url( admin_url( 'admin.php?page=wc-settings&tab=email' ) ) . '">', '</a>' ); ?></em></p>
-
-			<?php endif; ?>
+			?>
 
 		</div>
 		<?php

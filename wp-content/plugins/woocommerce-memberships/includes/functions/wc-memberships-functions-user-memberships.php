@@ -294,9 +294,8 @@ function wc_memberships_create_user_membership( $args = array(), $action = 'crea
 	/**
 	 * Fires after a user has been granted membership access
 	 *
-	 * This action hook is similar to `wc_memberships_user_membership_saved`
-	 * but doesn't fire when memberships are manually created from admin
-	 * @see \WC_Memberships_User_Memberships::save_user_membership()
+	 * This action hook is similar to wc_memberships_user_membership_saved
+	 * but won't fire when memberships are manually created from admin
 	 *
 	 * @since 1.3.0
 	 * @param \WC_Memberships_Membership_Plan $membership_plan The plan that user was granted access to

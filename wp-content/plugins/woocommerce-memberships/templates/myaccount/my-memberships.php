@@ -119,7 +119,7 @@ defined( 'ABSPATH' ) or exit;
 
 						<td class="membership-start-date" data-title="<?php echo esc_attr( $column_name ); ?>">
 							<?php
-								$past_start_date = $customer_membership->get_order() && ( $customer_membership->get_start_date() < $customer_membership->get_order()->order_date );
+								$past_start_date = ( $customer_membership->get_start_date() < $customer_membership->get_order()->order_date );
 
 								// show the order date instead if the start date is in the past
 								if ( $customer_membership->get_plan()->is_access_length_type( 'fixed' ) && $customer_membership->get_order_id() && $past_start_date ) {

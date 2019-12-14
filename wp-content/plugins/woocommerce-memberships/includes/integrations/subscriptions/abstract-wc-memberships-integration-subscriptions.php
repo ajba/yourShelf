@@ -81,13 +81,16 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 	 */
 	public function __construct() {
 
-		// load integration parts that should run at WordPress init time
-		add_action( 'init', array( $this, 'init' ) );
+		// set the user membership to subscription type if the membership is tied to a subscription
+		add_filter( 'wc_memberships_user_membership_type', array( $this, 'get_subscription_tied_membership_type' ), 1, 2 );
+
+		// filter memberships objects
+		add_filter( 'wc_memberships_membership_plan', array( $this, 'get_membership_plan' ), 2, 3 );
+		add_filter( 'wc_memberships_user_membership', array( $this, 'get_user_membership' ), 2, 1 );
 
 		// handle granting Membership access
 		add_filter( 'wc_memberships_access_granting_purchased_product_id',               array( $this, 'adjust_access_granting_product_id' ), 10, 3 );
 		add_filter( 'wc_memberships_new_membership_data',                                array( $this, 'adjust_new_membership_data' ), 10, 2 );
-		add_filter( 'wc_memberships_user_membership_created',                            array( $this, 'upon_new_membership_created' ) );
 		add_filter( 'wc_memberships_renew_membership',                                   array( $this, 'renew_membership' ), 10, 3 );
 		add_action( 'wc_memberships_grant_membership_access_from_purchase',              array( $this, 'save_subscription_data' ), 10, 2 );
 		add_filter( 'wc_memberships_grant_access_from_new_purchase',                     array( $this, 'maybe_grant_access_from_new_subscription' ), 10, 2 );
@@ -95,7 +98,7 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 		add_filter( 'wc_memberships_grant_access_from_existing_purchase_order_statuses', array( $this, 'grant_access_from_active_subscription' ) );
 
 		// adjust Memberships access dates
-		add_filter( 'wc_memberships_access_from_time', array( $this, 'adjust_post_access_from_time' ), 10, 3 );
+		add_filter( 'wc_memberships_access_from_time',     array( $this, 'adjust_post_access_from_time' ), 10, 3 );
 
 		// handle Membership expiration by cron event
 		add_filter( 'wc_memberships_expire_user_membership', array( $this, 'handle_membership_expiry_by_scheduled_event' ), 5, 2 );
@@ -108,24 +111,6 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 
 		// load integration files
 		$this->includes();
-	}
-
-
-	/**
-	 * Init
-	 *
-	 * @internal
-	 *
-	 * @since 1.7.3
-	 */
-	public function init() {
-
-		// filter memberships objects
-		add_filter( 'wc_memberships_membership_plan', array( $this, 'get_membership_plan' ), 2, 3 );
-		add_filter( 'wc_memberships_user_membership', array( $this, 'get_user_membership' ), 2, 1 );
-
-		// set the user membership to subscription type if the membership is tied to a subscription
-		add_filter( 'wc_memberships_user_membership_type', array( $this, 'get_subscription_tied_membership_type' ), 1, 2 );
 	}
 
 
@@ -241,7 +226,7 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 	 *
 	 * @since 1.6.0
 	 * @param array|\WC_Subscription $subscription
-	 * @param \WC_Memberships_Integration_Subscriptions_User_Membership $user_membership
+	 * @param \WC_Memberships_User_Membership $user_membership
 	 * @param string $new_subscription_status Subscription status changing to
 	 * @param string|void $note Optional Membership note, if empty will be automatically set by status type
 	 */
@@ -266,10 +251,6 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 					}
 
 					$user_membership->update_status( 'free_trial', $note );
-
-					// also update the free trial end date
-					// which now might account for a paused interval
-					$user_membership->set_free_trial_end_date( $this->get_subscription_event_date( $subscription, 'trial_end' ) );
 
 				} else {
 
@@ -318,16 +299,11 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 
 			case 'pending-cancel':
 
-				// sanity check: do not send the membership to pending cancel
-				// until a free trial is finally cancelled or period has ended
-				if ( ! $user_membership->is_in_free_trial_period() ) {
-
-					if ( ! $note ) {
-						$note = __( 'Membership marked as pending cancellation because subscription is pending cancellation.', 'woocommerce-memberships' );
-					}
-
-					$user_membership->update_status( 'pending', $note );
+				if ( ! $note ) {
+					$note = __( 'Membership marked as pending cancellation because subscription is pending cancellation.', 'woocommerce-memberships' );
 				}
+
+				$user_membership->update_status( 'pending', $note );
 
 			break;
 
@@ -566,9 +542,10 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 
 		if ( 'yes' === $rule->get_access_schedule_exclude_trial() ) {
 
-			$subscription_user_membership = new WC_Memberships_Integration_Subscriptions_User_Membership( $user_membership->get_id() );
+			$has_subscription = $this->is_membership_linked_to_subscription( $user_membership->get_id() );
+			$trial_end_date   = $this->get_user_membership_trial_end_date( $user_membership->get_id(), 'timestamp' );
 
-			if ( $subscription_user_membership->has_subscription() && ( $trial_end_date = $subscription_user_membership->get_free_trial_end_date( 'timestamp' ) ) ) {
+			if ( $has_subscription && $trial_end_date ) {
 
 				$from_time = $trial_end_date;
 			}
@@ -741,7 +718,7 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 
 							// check if the user purchasing is already member of a plan
 							// but the membership is cancelled or pending cancellation
-							if ( wc_memberships_is_user_member( $user_id, $plan ) && $user_membership->has_status( array( 'pending', 'cancelled' ) ) ) {
+							if ( wc_memberships_is_user_member( $user_id, $plan ) && $user_membership->has_status( array( 'pending-cancel', 'pending', 'cancelled' ) ) ) {
 
 								$subscription_membership = new WC_Memberships_Integration_Subscriptions_User_Membership( $user_membership->post );
 
@@ -869,29 +846,6 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 
 
 	/**
-	 * When a new membership is created (not necessarily subscription tied)
-	 *
-	 * @internal
-	 *
-	 * @since 1.7.1
-	 * @param \WC_Memberships_User_Membership $user_membership The new user membership
-	 */
-	public function upon_new_membership_created( $user_membership ) {
-
-		if ( $user_membership->post && $this->has_subscription_granted_access( $user_membership ) ) {
-
-			$subscription_tied_membership = new WC_Memberships_Integration_Subscriptions_User_Membership( $user_membership->post );
-
-			// maybe set the free trial end date meta if subscription is on trial
-			if ( $subscription_tied_membership->has_status( 'free_trial' ) ) {
-
-				$subscription_tied_membership->set_free_trial_end_date( $this->get_subscription_event_date( $subscription_tied_membership->get_subscription(), 'trial_end' ) );
-			}
-		}
-	}
-
-
-	/**
 	 * Save related subscription data when a membership access is granted via a purchase
 	 *
 	 * Sets the end date to match subscription end date
@@ -940,13 +894,41 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 				$membership_end_date = $subscription_plan->get_expiration_date( current_time( 'mysql', true ), $args );
 			}
 
-			// maybe update the trial end date
-			if ( $trial_end_date = $this->get_subscription_event_date( $subscription, 'trial_end' ) ) {
-				$subscription_membership->set_free_trial_end_date( $trial_end_date );
-			}
-
 			$subscription_membership->set_end_date( $membership_end_date );
 		}
+	}
+
+
+	/**
+	 * Get the membership subscription trial end datetime
+	 *
+	 * May return null if the membership is not tied to a subscription
+	 *
+	 * @since 1.6.0
+	 * @param int $user_membership_id User Membership ID
+	 * @param string $format Optional. Defaults to 'mysql'
+	 * @return string|null Returns the trial end date or null
+	 */
+	public function get_user_membership_trial_end_date( $user_membership_id, $format = 'mysql' ) {
+
+		if ( ! isset( $this->subscription_trial_end_date[ $user_membership_id ] ) ) {
+
+			if ( ! $this->is_membership_linked_to_subscription( $user_membership_id ) ) {
+				return null;
+			}
+
+			$subscription = $this->get_subscription_from_membership( $user_membership_id );
+
+			if ( 'mysql' === $format ) {
+				$trial_end = $this->get_subscription_event_date( $subscription, 'trial_end' );
+			} else {
+				$trial_end = $this->get_subscription_event_time( $subscription, 'trial_end' );
+			}
+
+			$this->subscription_trial_end_date[ $user_membership_id ] = $trial_end;
+		}
+
+		return $this->subscription_trial_end_date[ $user_membership_id ];
 	}
 
 
@@ -1431,29 +1413,8 @@ abstract class WC_Memberships_Integration_Subscriptions_Abstract {
 
 		$deprecated_since_1_6_0 = '1.6.0';
 		$deprecated_since_1_7_0 = '1.7.0';
-		$deprecated_since_1_7_1 = '1.7.1';
 
 		switch ( $method ) {
-
-			/** @deprecated since 1.7.1 */
-			case 'get_user_membership_trial_end_date' :
-
-				_deprecated_function( "{$class}->{$method}()", $deprecated_since_1_7_1, 'wc_memberships_get_user_membership()->get_free_trial_end_date()' );
-
-				$user_membership_id = isset( $args[0] ) ? $args[0] : $args;
-				$format             = isset( $args[1] ) ? $args[1] : 'mysql';
-
-				if ( is_int( $user_membership_id ) ) {
-
-					$user_membership = wc_memberships_get_user_membership( $user_membership_id );
-
-					if ( $this->is_membership_linked_to_subscription( $user_membership ) ) {
-
-						return $user_membership->get_free_trial_end_date( $format );
-					}
-				}
-
-				return null;
 
 			/** @deprecated since 1.7.0 */
 			case 'order_contains_subscription' :

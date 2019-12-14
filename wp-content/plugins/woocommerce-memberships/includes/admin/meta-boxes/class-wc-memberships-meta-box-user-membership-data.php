@@ -388,19 +388,15 @@ class WC_Memberships_Meta_Box_User_Membership_Data extends WC_Memberships_Meta_B
 					'value'       => substr( $start_date, 0, 10 ),
 				) );
 
-				// get the end date saved for this membership
-				$end_date = $user_membership->get_local_end_date( 'Y-m-d', false );
-
-				if ( null === $end_date ) {
-
-					// membership is unlimited (default for new manual memberships)
+				if ( null !== $user_membership->get_local_end_date( 'Y-m-d', false ) ) {
+					// get the end date saved for this membership
+					$end_date = date( 'Y-m-d', strtotime( 'midnight', $user_membership->get_local_end_date( 'timestamp', false ) ) );
+				} elseif ( 'auto-draft' === $post->post_status ) {
+					// try determining the membership end date by the plan expiration date
+					$end_date = $membership_plan ? $membership_plan->get_expiration_date( $start_date ) : '';
+				} else {
+					// membership is unlimited
 					$end_date = '';
-
-					// however, try determining the membership end date
-					// according to the plan expiration date
-					if ( 'auto-draft' === $post->post_status ) {
-						$end_date = $membership_plan ? $membership_plan->get_expiration_date( $start_date ) : $end_date;
-					}
 				}
 
 				$calc_end_date = '<a href="#" class="js-calc-plan-date js-calc-plan-end-date">' . esc_html__( 'Update expiration date to plan length', 'woocommerce-memberships' ) . '</a>';

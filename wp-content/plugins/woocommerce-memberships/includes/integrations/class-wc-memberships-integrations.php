@@ -25,13 +25,7 @@
 defined( 'ABSPATH' ) or exit;
 
 /**
- * Class handling integrations and compatibility issues with third party plugins:
- *
- * - WooCommerce Bookings: https://woocommerce.com/products/woocommerce-bookings/
- * - Groups: https://wordpress.org/plugins/groups/
- * - qTranslate X: https://wordpress.org/plugins/qtranslate-x/
- * - WooCommerce Subscriptions: https://woocommerce.com/products/woocommerce-subscriptions/
- * - User Switching: https://wordpress.org/plugins/user-switching/
+ * Class handling integrations with third party plugins
  *
  * @since 1.6.0
  */
@@ -67,11 +61,6 @@ class WC_Memberships_Integrations {
 		if ( $this->is_groups_active() ) {
 			$this->groups = wc_memberships()->load_class( '/includes/integrations/groups/class-wc-memberships-integration-groups.php', 'WC_Memberships_Integration_Groups' );
 		}
-
-		// qTranslate-x
-		// the translation plugin could trigger server errors when restricting the
-		// whole content - see https://github.com/qTranslate-Team/qtranslate-x/issues/449
-		remove_action( 'pre_get_posts', 'qtranxf_pre_get_posts', 99 );
 
 		// Subscriptions
 		if ( $this->is_subscriptions_active() ) {
@@ -145,9 +134,7 @@ class WC_Memberships_Integrations {
 	 * @return bool
 	 */
 	public function is_bookings_active() {
-		// the misspelling is intentional, as Bookings only fixed the typo for the main plugin file in v1.9.11
-		// TODO: Remove the bookings misspelling on or after 2017-09-01 {BR 2016-11-14}
-		return wc_memberships()->is_plugin_active( 'woocommmerce-bookings.php' ) || wc_memberships()->is_plugin_active( 'woocommerce-bookings.php' );
+		return wc_memberships()->is_plugin_active( 'woocommmerce-bookings.php' );
 	}
 
 

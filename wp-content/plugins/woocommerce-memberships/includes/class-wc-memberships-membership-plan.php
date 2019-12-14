@@ -466,37 +466,29 @@ class WC_Memberships_Membership_Plan {
 	 */
 	public function get_human_access_length() {
 
-		$standard_length = $this->get_access_length();
+		$length = $this->get_access_length();
 
-		if ( empty( $standard_length ) ) {
+		if ( empty( $length ) ) {
 
-			$human_length = __( 'Unlimited', 'woocommerce-memberships' );
+			$length = __( 'Unlimited', 'woocommerce-memberships' );
 
 		} else {
 
 			$present = current_time( 'timestamp', true );
-			$future  = strtotime( $standard_length, $present );
+			$future  = strtotime( $length, $present );
 			$n_days  = ( $future - $present ) / DAY_IN_SECONDS;
 			/* translators: Placeholders: %d - number of days */
 			$days    = sprintf( _n( '%d day', '%d days', $n_days ), $n_days );
 			$diff    = human_time_diff( $present, $future );
 
 			if ( $n_days >= 31 ) {
-				$human_length = is_rtl() ? "({$days}) " . $diff : $diff . " ({$days})";
+				$length = is_rtl() ? "({$days}) " . $diff : $diff . " ({$days})";
 			} else {
-				$human_length = $days;
+				$length = $days;
 			}
 		}
 
-		/**
-		 * Filter a User Membership access length in a human friendly form
-		 *
-		 * @since 1.7.2
-		 * @param string $human_length The length in human friendly format
-		 * @param string $standard_length The length in machine friendly format
-		 * @param int $user_membership_id The User Membership ID
-		 */
-		return apply_filters( 'wc_memberships_membership_plan_human_access_length', $human_length, $standard_length, $this->id );
+		return $length;
 	}
 
 
@@ -1053,17 +1045,16 @@ class WC_Memberships_Membership_Plan {
 	 */
 	private function get_restricted( $type, $paged = 1 ) {
 
-		$query    = null;
-		$post_ids = array();
-		$rules    = $this->get_rules( $type );
+		$posts = null;
+		$rules = $this->get_rules( $type );
 
-		// sanity check
-		if ( empty( $rules ) || ! is_array( $rules ) ) {
-			return $query;
+		if ( ! empty( $rules ) && ! is_array( $rules ) ) {
+			return $posts;
 		}
 
-		foreach ( $rules as $data ) {
+		$post_ids = array();
 
+		foreach ( $rules as $data ) {
 			$plan_rules = (array) $data;
 
 			foreach ( $plan_rules as $rule ) {
@@ -1072,19 +1063,18 @@ class WC_Memberships_Membership_Plan {
 
 					if ( ! empty( $rule['object_ids'] ) ) {
 
-						// specific posts are restricted for this rule
 						$post_ids = array_merge( $post_ids, array_map( 'intval', array_values( $rule['object_ids'] ) ) );
 
 					} else {
 
-						// all posts of a type are restricted
-						$post_ids_query = new WP_Query( array(
+						$query_post_ids = new WP_Query( array(
 							'fields'    => 'ids',
 							'nopaging'  => true,
 							'post_type' => $rule['content_type_name'],
 						) );
 
-						$post_ids = ! empty( $post_ids_query->posts ) ? array_merge( $post_ids, array_map( 'intval', $post_ids_query->posts ) ) : $post_ids;
+						$post_ids = array_merge( $post_ids, $query_post_ids->posts );
+
 					}
 
 				} elseif ( 'taxonomy' === $rule['content_type'] ) {
@@ -1111,92 +1101,50 @@ class WC_Memberships_Membership_Plan {
 							),
 						) );
 
-						$post_ids = ! empty( $taxonomy->posts ) ? array_merge( $post_ids, array_map( 'intval', $taxonomy->posts ) ) : $post_ids;
+						$post_ids = array_merge( $post_ids, $taxonomy->posts );
 					}
 				}
 			}
+		}
+
+		$post_ids = array_unique( $post_ids );
+
+		// remove product ids that are marked to ignore member discounts
+		if ( 'purchasing_discount' === $type && ! empty( $post_ids ) ) {
+			$post_ids = $this->filter_products_excluding_member_discounts( $post_ids );
 		}
 
 		if ( ! empty( $post_ids ) ) {
 
-			$post_ids = array_unique( $post_ids );
+			// avoid use of 'any' in query args, to include post types
+			// marked as 'excluded_from_search' which wouldn't be returned
+			$post_types = get_post_types( array(
+				'public' => true,
+			) );
 
-			// special handling for products
-			if ( in_array( $type, array( 'product_restriction', 'purchasing_discount' ), true ) ) {
+			$query_args = array(
+				'post_type'           => array_keys( $post_types ),
+				'post__in'            => $post_ids,
+				'ignore_sticky_posts' => true,
+				'paged'               => $paged,
+			);
 
-				// ensure that for variations we list parent variable products
-				$post_types = array( 'product' );
-				$parent_ids = array();
+			/**
+			 * Filter restricted content query args
+			 *
+			 * @since 1.6.3
+			 * @param array $query_args Args passed to WP_Query
+			 * @param string $query_type Type of request: 'content_restriction', 'product_restriction', 'purchasing_discount'
+			 * @param int $query_paged Pagination request
+			 */
+			$query_args = apply_filters( 'wc_memberships_get_restricted_posts_query_args', $query_args, $type, $paged );
 
-				foreach ( $post_ids as $post_id ) {
+			$posts = new WP_Query( $query_args );
 
-					if ( $product = wc_get_product( $post_id ) ) {
-
-						if ( ! empty( $product->parent ) && $product->is_type( 'variation' ) && $product->parent->is_type( 'variable' ) ) {
-
-							// sanity check: maybe a variation is included in this plan
-							// but the parent variable product is being restricted
-							// by the rules of another plan the user is not member of
-							if ( ! in_array( $product->parent->id, $post_ids, false ) ) {
-								$can_list_product = wc_memberships_user_can( get_current_user_id(), 'view', array( 'product' => $product->parent->id ) );
-							} else {
-								$can_list_product = true;
-							}
-
-							if ( $can_list_product ) {
-								$parent_ids[] = $product->parent->id;
-							}
-
-						} elseif ( $this->has_product_discount( $product ) || ( 'product_restriction' === $type && wc_memberships_user_can( get_current_user_id(), 'view', array( 'product' => $product->id ) ) ) ) {
-
-							$parent_ids[] = $product->id;
-						}
-					}
-				}
-
-				$post_ids = array_unique( $parent_ids );
-
-				// remove product ids that are marked to ignore member discounts
-				if ( 'purchasing_discount' === $type && ! empty( $post_ids ) ) {
-					$post_ids = $this->filter_products_excluding_member_discounts( $post_ids );
-				}
-
-			} else {
-
-				// avoid use of 'any' in query args, to include post types
-				// marked as 'excluded_from_search' which wouldn't be returned
-				$post_types = get_post_types( array(
-					'public' => true,
-				) );
-			}
-
-			// sanity check, otherwise WP_Query will return all posts
-			if ( ! empty( $post_ids ) ) {
-
-				$query_args = array(
-					'post_type'           => $post_types,
-					'post__in'            => $post_ids,
-					'ignore_sticky_posts' => true,
-					'paged'               => $paged,
-				);
-
-				/**
-				 * Filter restricted content query args
-				 *
-				 * @since 1.6.3
-				 * @param array $query_args Args passed to WP_Query
-				 * @param string $query_type Type of request: 'content_restriction', 'product_restriction', 'purchasing_discount'
-				 * @param int $query_paged Pagination request
-				 */
-				$query_args = apply_filters( 'wc_memberships_get_restricted_posts_query_args', $query_args, $type, $paged );
-
-				$query = new WP_Query( $query_args );
-
-				return $query;
-			}
+			return $posts;
 		}
 
-		return $query;
+		return $posts;
 	}
 
 
@@ -1206,12 +1154,10 @@ class WC_Memberships_Membership_Plan {
 	 *
 	 * @since 1.7.0
 	 * @param int[] $product_ids Array of WC_Product post ids
-	 * @return int[] Array of product ids
+	 * @return int[]
 	 */
 	private function filter_products_excluding_member_discounts( array $product_ids ) {
 
-		// get products that are individually marked to be excluded
-		// from member discounts
 		$excluded_product_ids = get_posts( array(
 			'post_type' => 'product',
 			'post__in'  => $product_ids,
@@ -1233,11 +1179,11 @@ class WC_Memberships_Membership_Plan {
 		// we must also check if any of the remainder products are on sale
 		$discounts = wc_memberships()->get_member_discounts_instance();
 
-		if ( $discounts && ! empty( $product_ids ) && ( $exclude_on_sale_products = $discounts->excluding_on_sale_products_from_member_discounts() ) ) {
+		if ( $discounts && ! empty( $product_ids ) && $discounts->excluding_on_sale_products_from_member_discounts() ) {
 
 			foreach ( $product_ids as $product_id ) {
 
-				if ( $exclude_on_sale_products && $discounts->product_is_on_sale_before_discount( $product_id ) ) {
+				if ( $discounts->product_is_on_sale_before_discount( $product_id ) ) {
 
 					foreach ( array_keys( $product_ids, $product_id, true ) as $key ) {
 
@@ -1288,23 +1234,11 @@ class WC_Memberships_Membership_Plan {
 
 
 	/**
-	 * Check whether the plan offers a discount for the specified product
-	 *
-	 * @since 1.7.1
-	 * @param int|\WC_Product $product The product
-	 * @return bool
-	 */
-	public function has_product_discount( $product ) {
-		return (bool) $this->get_product_discount( $product );
-	}
-
-
-	/**
-	 * Get product discount fixed amount or percentage
+	 * Get product discount amount
 	 *
 	 * @since 1.4.0
 	 * @param int|\WC_Product $product Product to check discounts for
-	 * @return float|int|string A number as a fixed amount or % percentage amount
+	 * @return string Formatted discount as an amount or percentage
 	 */
 	public function get_product_discount( $product ) {
 
@@ -1321,110 +1255,20 @@ class WC_Memberships_Membership_Plan {
 
 				switch( $discount->get_discount_type() ) {
 
-					case 'percentage' :
-						$member_discount = abs( $discount->get_discount_amount() ) . '%';
+					case 'amount':
+						$member_discount = get_woocommerce_currency_symbol() . $discount->get_discount_amount();
 					break;
 
-					case 'amount' :
-					default :
-						$member_discount = abs( $discount->get_discount_amount() );
+					case 'percentage':
+						$member_discount = $discount->get_discount_amount() . '&#37;';
 					break;
+
+					default:
+						$member_discount = $discount->get_discount_amount();
+					break;
+
 				}
 			}
-		}
-
-		return ! empty( $member_discount ) ? $member_discount : '';
-	}
-
-
-	/**
-	 * Get the formatted product discount
-	 *
-	 * @since 1.7.1
-	 * @param \WC_Product|\WC_Product_Variation $product The product object
-	 * @return string
-	 */
-	public function get_formatted_product_discount( $product ) {
-
-		$member_discount = $this->get_product_discount( $product );
-
-		if ( empty( $member_discount ) && ( $child_products = $product->get_children() ) ) {
-
-			// if the product has no discount and it's variable,
-			// check if the variations have direct discounts
-			$child_discounts               = array();
-			$children_fixed_discounts      = array();
-			$children_percentage_discounts = array();					;
-
-			foreach ( $child_products as $child_product_id ) {
-
-				$child_discount = $this->get_product_discount( $child_product_id );
-
-				if ( ! empty( $child_discount ) ) {
-
-					if ( is_numeric ( $child_discount ) ) {
-						$children_fixed_discounts[]      = (float) $child_discount;
-					} else {
-						$children_percentage_discounts[] = (float) rtrim( $child_discount, '%' );
-					}
-				}
-			}
-
-			if ( ! empty( $children_fixed_discounts ) ) {
-				$child_discounts[] = $this->get_product_from_to_discount( $children_fixed_discounts, 'fixed' );
-			}
-
-			if ( ! empty( $children_percentage_discounts ) ) {
-				$child_discounts[] = $this->get_product_from_to_discount( $children_percentage_discounts, 'percentage' );
-			}
-
-			if ( ! empty( $child_discounts ) ) {
-				$member_discount = wc_memberships_list_items( $child_discounts );
-			}
-
-		} elseif ( ! empty( $member_discount ) && is_numeric( $member_discount ) ) {
-
-			// format fixed amount discounts
-			$member_discount = wc_price( $member_discount );
-		}
-
-		return $member_discount;
-	}
-
-
-	/**
-	 * Get product discounts range (used for variations)
-	 *
-	 * @see \WC_Memberships_Membership_Plan::get_formatted_product_discount()
-	 *
-	 * @since 1.7.1
-	 * @param int[]|float[] $discounts Array of numbers
-	 * @param string $type Type of discount range, 'fixed' amount or 'percentage' amount
-	 * @return string Formatted range
-	 */
-	private function get_product_from_to_discount( $discounts, $type ) {
-
-		$member_discount = '';
-		$min_discount    = min( $discounts );
-		$max_discount    = max( $discounts );
-
-		if ( $max_discount > $min_discount ) {
-
-			if ( in_array( $type, array( 'fixed', 'percentage' ), true ) ) {
-
-				$min_discount = 'fixed' === $type ? wc_price( $min_discount ) : $min_discount . '%';
-				$max_discount = 'fixed' === $type ? wc_price( $max_discount ) : $max_discount . '%';
-
-				if ( is_rtl() ) {
-					$member_discount = $max_discount . '-' . $min_discount;
-				} else {
-					$member_discount = $min_discount . '-' . $max_discount;
-				}
-			}
-
-		} elseif ( $min_discount > 0 ) {
-
-			$member_discount = 'fixed' === $type ? wc_price( $min_discount ) : $min_discount . '%';
 		}
 
 		return $member_discount;
@@ -1538,7 +1382,6 @@ class WC_Memberships_Membership_Plan {
 			return null;
 		}
 
-		$product_id     = SV_WC_Plugin_Compatibility::product_get_id( $product );
 		$order_status   = $order->get_status();
 		$access_granted = wc_memberships_get_order_access_granted_memberships( $order_id );
 

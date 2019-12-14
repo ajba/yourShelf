@@ -52,31 +52,15 @@ class WC_Memberships_Member_Discounts {
 	/** @var array Memoization for product on sale before discount */
 	private $product_is_on_sale_before_discount = array();
 
+	/** @var string Tax display shop setting (incl or excl) */
+	private $tax_display_mode = '';
+
 	/** @var bool Whether the current user, maybe member, is logged in */
 	private $member_is_logged_in = false;
 
-	/** @var bool Whether discounts calculations are running for products  */
-	private $applying_discounts = false;
-
 
 	/**
-	 * Set up member discounts: Welcome to the jungle.
-	 *
-	 * @since 1.3.0
-	 */
-	public function __construct() {
-
-		// bail out if in an admin ajax context
-		if ( ! $this->is_wp_admin_ajax() ) {
-
-			// init discounts so we don't hook to early
-			add_action( 'init', array( $this, 'init' ) );
-		}
-	}
-
-
-	/**
-	 * Init member discounts
+	 * Set up member discounts
 	 *
 	 * We follow here a pattern common in many price-affecting extensions,
 	 * due to the need to produce a "price before/after discount" type of HTML output,
@@ -103,13 +87,12 @@ class WC_Memberships_Member_Discounts {
 	 * @see \WC_Memberships_Member_Discounts::enable_price_adjustments()
 	 * @see \WC_Memberships_Member_Discounts::disable_price_adjustments()
 	 *
-	 * @internal
-	 *
-	 * @since 1.7.1
+	 * @since 1.3.0
 	 */
-	public function init() {
+	public function __construct() {
 
 		$this->member_is_logged_in      = wc_memberships_is_user_member( get_current_user_id() );
+		$this->tax_display_mode         = get_option( 'woocommerce_tax_display_shop' );
 		$this->exclude_on_sale_products = 'yes' === get_option( 'wc_memberships_exclude_on_sale_products_from_member_discounts', 'no' );
 
 		// refreshes the mini cart upon member login
@@ -117,80 +100,35 @@ class WC_Memberships_Member_Discounts {
 
 		// member discount class methods are available on both frontend and backend
 		// but the hooks below should run in frontend only for logged in members
-		if ( ! ( is_admin() && ! is_ajax() ) ) {
+		if ( $this->member_is_logged_in && ! ( is_admin() && ! is_ajax() ) ) {
 
-			if ( $this->member_is_logged_in ) {
+			// initialize discount actions that will be called in this class methods
+			add_action( 'wc_memberships_discounts_enable_price_adjustments',       array( $this, 'enable_price_adjustments' ) );
+			add_action( 'wc_memberships_discounts_enable_price_html_adjustments',  array( $this, 'enable_price_html_adjustments' ) );
+			add_action( 'wc_memberships_discounts_disable_price_adjustments',      array( $this, 'disable_price_adjustments' ) );
+			add_action( 'wc_memberships_discounts_disable_price_html_adjustments', array( $this, 'disable_price_html_adjustments' ) );
 
-				$this->applying_discounts = true;
+			// start off by activating discounts for logged in members
+			do_action( 'wc_memberships_discounts_enable_price_adjustments' );
+			do_action( 'wc_memberships_discounts_enable_price_html_adjustments' );
 
-				// initialize discount actions that will be called in this class methods
-				add_action( 'wc_memberships_discounts_enable_price_adjustments',       array( $this, 'enable_price_adjustments' ) );
-				add_action( 'wc_memberships_discounts_enable_price_html_adjustments',  array( $this, 'enable_price_html_adjustments' ) );
-				add_action( 'wc_memberships_discounts_disable_price_adjustments',      array( $this, 'disable_price_adjustments' ) );
-				add_action( 'wc_memberships_discounts_disable_price_html_adjustments', array( $this, 'disable_price_html_adjustments' ) );
+			// force calculations in cart
+			add_filter( 'woocommerce_update_cart_action_cart_updated', '__return_true' );
+			// adjust cart items prices
+			add_filter( 'woocommerce_cart_item_price', array( $this, 'on_cart_item_price' ), 999, 2 );
 
-				// start off by activating discounts for logged in members
-				do_action( 'wc_memberships_discounts_enable_price_adjustments' );
-				do_action( 'wc_memberships_discounts_enable_price_html_adjustments' );
+			// member discount badges
+			add_action( 'woocommerce_before_shop_loop_item_title',   'wc_memberships_show_product_loop_member_discount_badge' );
+			add_action( 'woocommerce_before_single_product_summary', 'wc_memberships_show_product_member_discount_badge' );
+			add_filter( 'wc_memberships_member_discount_badge',      array( $this, 'disable_discount_badge_for_excluded_products' ), 10, 3 );
 
-				// force calculations in cart
-				add_filter( 'woocommerce_update_cart_action_cart_updated', '__return_true' );
-				// adjust cart items prices
-				add_filter( 'woocommerce_cart_item_price', array( $this, 'on_cart_item_price' ), 999, 2 );
+			// make sure that the display of the "On Sale" badge is honoured
+			add_filter( 'woocommerce_product_is_on_sale', array( $this, 'product_is_on_sale' ), 999, 2 );
 
-				// member discount badges
-				add_action( 'woocommerce_before_shop_loop_item_title',   'wc_memberships_show_product_loop_member_discount_badge' );
-				add_action( 'woocommerce_before_single_product_summary', 'wc_memberships_show_product_member_discount_badge' );
-				add_filter( 'wc_memberships_member_discount_badge',      array( $this, 'disable_discount_badge_for_excluded_products' ), 10, 3 );
-
-				// handle price suffix
-				add_filter( 'woocommerce_get_price_suffix', array( $this, 'on_get_price_suffix' ), 999, 2 );
-
-				// make sure that the display of the "On Sale" badge is honoured
-				add_filter( 'woocommerce_product_is_on_sale', array( $this, 'product_is_on_sale' ), 999, 2 );
-
-				// if a product is on sale and has a member discount, optionally show the sale badge
-				add_action( 'woocommerce_single_product_summary', array( $this, 'display_sale_badge_for_discounted_products' ), 1 );
-				add_action( 'woocommerce_shop_loop_item_title',   array( $this, 'display_sale_badge_for_discounted_products' ), 1 );
-
-			} else {
-
-				$this->applying_discounts = false;
-
-				// ensures 'wc_memberships_get_price_html' filter hook is fired nonetheless
-				add_filter( 'woocommerce_get_price_html', array( $this, 'on_price_html' ), 999, 2 );
-			}
+			// if a product is on sale and has a member discount, optionally show the sale badge
+			add_action( 'woocommerce_single_product_summary', array( $this, 'display_sale_badge_for_discounted_products' ), 1 );
+			add_action( 'woocommerce_shop_loop_item_title',   array( $this, 'display_sale_badge_for_discounted_products' ), 1 );
 		}
-	}
-
-
-	/**
-	 * Determines if we are in an admin context where member discounts should not run.
-	 *
-	 * @since 1.7.3-6
-	 * @return bool
-	 */
-	private function is_wp_admin_ajax() {
-
-		// Check if any of the enhanced search product actions are being done.
-		if ( is_admin() ) {
-
-			/* @see WC_AJAX::add_ajax_events() */
-			$search_products = array(
-				'json_search_products',
-				'json_search_products_and_variations',
-				'json_search_grouped_products',
-				'json_search_downloadable_products_and_variations',
-			);
-
-			foreach ( $search_products as $ajax_event ) {
-				if ( did_action( 'wp_ajax_woocommerce_' . $ajax_event ) ) {
-					return true;
-				}
-			}
-		}
-
-		return false;
 	}
 
 
@@ -251,7 +189,6 @@ class WC_Memberships_Member_Discounts {
 
 			$has_discount = wc_memberships()->get_rules_instance()->user_has_product_member_discount( $member_id, $product_id );
 
-			// if a variable product, before return false check for its variations
 			if ( ! $has_discount && $the_product->has_child() ) {
 
 				foreach ( $the_product->get_children() as $product_child_id ) {
@@ -260,13 +197,7 @@ class WC_Memberships_Member_Discounts {
 
 					$this->member_has_product_discount[ $member_id ][ $product_child_id ] = $has_discount;
 
-					// if one of the child variations has a discount, it's legit
-					// to say that the parent variable product has member discounts
-					if ( $has_discount ) {
-						$this->member_has_product_discount[ $member_id ][ $product_id ] = $has_discount;
-						break;
-					// unlikely occurrence but if so we can break the loop earlier
-					} elseif ( $product_id === $product_child_id ) {
+					if ( $product_child_id === $product_id ) {
 						break;
 					}
 				}
@@ -338,20 +269,6 @@ class WC_Memberships_Member_Discounts {
 		}
 
 		return $exclude;
-	}
-
-
-	/**
-	 * Check whether a variable product is discounted
-	 *
-	 * Notes: does not use discounts memoization, doesn't consider parent variable product discounts
-	 *
-	 * @since 1.7.2
-	 * @param int $variable_product_id The variable product id
-	 * @return bool
-	 */
-	private function variable_product_has_discount( $variable_product_id ) {
-		return wc_memberships()->get_rules_instance()->user_has_product_member_discount( get_current_user_id(), $variable_product_id );
 	}
 
 
@@ -534,6 +451,27 @@ class WC_Memberships_Member_Discounts {
 
 
 	/**
+	 * Get price inclusive or exclusive of tax, according to tax setting
+	 *
+	 * @since 1.6.0
+	 * @param \WC_Product|\WC_Product_Variation $product Product or variation
+	 * @return float
+	 */
+	private function get_price_with_tax( $product ) {
+
+		$price = $product->get_price();
+
+		if ( 'incl' === $this->tax_display_mode ) {
+			$price = $product->get_price_including_tax();
+		} elseif ( 'excl' === $this->tax_display_mode ) {
+			$price = $product->get_price_excluding_tax();
+		}
+
+		return (float) $price;
+	}
+
+
+	/**
 	 * Get product price before discount
 	 *
 	 * @since 1.7.0
@@ -545,7 +483,8 @@ class WC_Memberships_Member_Discounts {
 		// temporarily disable price adjustments
 		do_action( 'wc_memberships_discounts_disable_price_adjustments' );
 
-		$price = $product->get_price();
+		// get the base price without discounts
+		$price = $this->get_price_with_tax( $product );
 
 		// re-enable price adjustments
 		do_action( 'wc_memberships_discounts_enable_price_adjustments' );
@@ -560,7 +499,7 @@ class WC_Memberships_Member_Discounts {
 	 * @internal
 	 *
 	 * @since 1.0.0
-	 * @param string|int|float $price Price to discount (normally a float, maybe a string number)
+	 * @param string|float $price Price to discount (normally a float, maybe a string number)
 	 * @param \WC_Product $product The product object
 	 * @return float Price
 	 */
@@ -589,224 +528,10 @@ class WC_Memberships_Member_Discounts {
 
 
 	/**
-	 * Get variable product price HTML before membership discounts
-	 *
-	 * @see \WC_Product_Variable::get_price_html()
-	 *
-	 * @since 1.7.1
-	 * @param \WC_Product_Variable $product Variable product
-	 * @param bool $display_sale_price Whether to display sale price
-	 * @return string HTML
-	 */
-	private function get_variable_product_price_html_before_discount( $product, $display_sale_price ) {
-
-		$prices = $product->get_variation_prices( true );
-
-		if ( empty( $prices['price'] ) || '' === $product->get_price() ) {
-
-			$html_before_discount = apply_filters( 'woocommerce_variable_empty_price_html', '', $product );
-
-		} else {
-
-			$regular_min = $sale_min = $product->get_variation_regular_price( 'min', true );
-			$regular_max = $sale_max = $product->get_variation_regular_price( 'max', true );
-
-			$regular_price = $regular_min !== $regular_max ? sprintf( _x( '%1$s&ndash;%2$s', 'Price range: from-to', 'woocommerce-memberships' ), wc_price( $regular_min ), wc_price( $regular_max ) ) : wc_price( $regular_min );
-
-			if ( $on_sale = $this->product_is_on_sale_before_discount( $product ) ) {
-
-				$sale_min = $product->get_variation_sale_price( 'min', true );
-				$sale_max = $product->get_variation_sale_price( 'max', true );
-
-				$sale_price = $sale_min !== $sale_max ? sprintf( _x( '%1$s&ndash;%2$s', 'Price range: from-to', 'woocommerce-memberships' ), wc_price( $sale_min ), wc_price( $sale_max ) ) : wc_price( $sale_min );
-
-				if ( $this->user_has_member_discount( $product ) ) {
-
-					$html_before_discount = $display_sale_price ? apply_filters( 'woocommerce_variable_sale_price_html', $sale_price, $product ) : $regular_price;
-
-				} else {
-
-					if ( $sale_min === $sale_max && ! $this->variable_product_has_discount( SV_WC_Plugin_Compatibility::product_get_id( $product ) ) ) {
-						$sale_price = wc_price( $this->get_price_before_discount( $product ) );
-					}
-
-					$html_before_discount = $html = '<del>' . $regular_price . '</del> <ins>' . $sale_price . '</ins>';
-					$html_before_discount = apply_filters( 'woocommerce_variable_sale_price_html', $html_before_discount, $product );
-				}
-
-			} else {
-
-				$html_before_discount = $regular_price;
-			}
-
-			// sanity check for free products:
-			// if min and max variations are 0, this product is free
-			$min_price = (float) current( $prices['price'] );
-			$max_price = (float) end( $prices['price'] );
-
-			if ( empty( $min_price ) && empty( $max_price ) ) {
-				$html_before_discount = apply_filters( 'woocommerce_variable_free_price_html', _x( 'Free!', 'Free product', 'woocommerce-memberships' ), $product );
-			}
-		}
-
-		return $html_before_discount;
-	}
-
-
-	/**
-	 *
-	 * Get variable product price HTML before membership discounts
-	 *
-	 * @since 1.7.2
-	 * @param \WC_Product_Variable $product Variable product
-	 * @return string HTML price
-	 */
-	private function get_variable_product_price_html_after_discount( $product ) {
-
-		$price_min = null;
-		$price_max = null;
-
-		if ( $this->variable_product_has_discount( $product->id ) ) {
-
-			// temporarily disable membership price adjustments
-			do_action( 'wc_memberships_discounts_disable_price_adjustments' );
-			do_action( 'wc_memberships_discounts_disable_price_html_adjustments' );
-
-			$price_min = $product->get_variation_price( 'min', true );
-			$price_min = $price_min > 0 ? $this->get_discounted_price( $price_min, $product ) : 0;
-			$price_max = $product->get_variation_price( 'max', true );
-			$price_max = $price_max > 0 ? $this->get_discounted_price( $price_max, $product ) : 0;
-
-			// re-enable membership price adjustments
-			do_action( 'wc_memberships_discounts_enable_price_adjustments' );
-			do_action( 'wc_memberships_discounts_enable_price_html_adjustments' );
-		}
-
-		// this may be a case when one or more product variations
-		// have discounts but the parent variable product has none
-		if ( ( empty( $price_min ) || empty( $price_max ) ) && ( $variations = $product->get_children() ) ) {
-
-			$variation_prices = array();
-
-			foreach ( $variations as $variation_id ) {
-				$variation_prices[] = wc_get_product( $variation_id )->get_display_price();
-			}
-
-			if ( ! empty( $variation_prices ) ) {
-				$price_min = min( $variation_prices );
-				$price_max = max( $variation_prices );
-			}
-		}
-
-		if ( $price_min !== $price_max ) {
-			$html_after_discount = sprintf( _x( '%1$s&ndash;%2$s', 'Price range: from-to', 'woocommerce-memberships' ), wc_price( $price_min ), wc_price( $price_max ) );
-		} elseif ( empty( $price_min ) && empty( $price_max ) ) {
-			$html_after_discount = $this->get_void_product_price_html_before_discount( $product );
-		} else {
-			$html_after_discount = wc_price( $price_min );
-		}
-
-		$html_after_discount .= $product->get_price_suffix( $product->get_display_price() );
-
-		return $html_after_discount;
-	}
-
-
-	/**
-	 * Get void product price HTML before membership discounts
-	 *
-	 * @see \WC_Product::get_price_html()
-	 *
-	 * @since 1.7.1
-	 * @param \WC_Product $product Product object
-	 * @return string HTML
-	 */
-	private function get_void_product_price_html_before_discount( $product ) {
-
-		$price = $product->get_price();
-
-		if ( empty( $price ) && '' !== $price ) {
-
-			if ( $this->product_is_on_sale_before_discount( $product ) && $product->get_regular_price() ) {
-
-				$price_label = $product->get_price_html_from_to( $product->get_display_price( $product->get_regular_price() ), _x( 'Free!', 'Free product', 'woocommerce-memberships' ) );
-
-				$html_before_discount = apply_filters( 'woocommerce_free_sale_price_html', $price_label, $this );
-
-			} else {
-
-				$html_before_discount = apply_filters( 'woocommerce_free_price_html', _x( 'Free!', 'Free product', 'woocommerce-memberships' ), $product );
-			}
-
-		} else {
-
-			$html_before_discount = apply_filters( 'woocommerce_empty_price_html', '', $product );
-		}
-
-		return $html_before_discount;
-	}
-
-
-	/**
-	 * Get simple or variation product price before membership discounts
-	 *
-	 * @see \WC_Product::get_price_html()
-	 * @see \WC_Product_Variation::get_price_html()
-	 *
-	 * @since 1.7.1
-	 * @param \WC_Product|\WC_Product_Variation $product A simple product or a variation
-	 * @param bool $display_sale_price Whether to display sale prices
-	 * @return string HTML
-	 */
-	private function get_product_price_html_before_discount( $product, $display_sale_price ) {
-
-		$on_sale      = $this->product_is_on_sale_before_discount( $product );
-		$is_variation = $product->is_type( 'variation' );
-
-		if ( $is_variation && '' === $product->get_price() ) {
-
-			$html_before_discount = apply_filters( 'woocommerce_variation_empty_price_html', '', $product );
-
-		} else {
-
-			if ( $this->user_has_member_discount( $product ) && ! $this->is_product_excluded_from_member_discounts( $product ) )  {
-
-				if ( $on_sale ) {
-					$price_before_discount = $display_sale_price ? $product->get_display_price( $product->get_sale_price() ) : $product->get_display_price( $product->get_regular_price() );
-					$html_before_discount  = wc_price( $price_before_discount );
-				} else {
-					$price_before_discount = $product->get_display_price( $product->get_regular_price() );
-					$html_before_discount  = wc_price( $price_before_discount );
-				}
-
-			} else {
-
-				if ( $on_sale ) {
-					$html_before_discount  = $product->get_price_html_from_to( $product->get_display_price( $product->get_regular_price() ), $product->get_display_price( $product->get_sale_price() ) );
-				} else {
-					$price_before_discount = $product->get_display_price( $product->get_regular_price() );
-					$html_before_discount  = wc_price( $price_before_discount );
-				}
-			}
-
-			// maybe apply wc filters before returning
-			if ( $on_sale ) {
-				$sale_price_html_filter = $is_variation ? 'woocommerce_variation_sale_price_html' : 'woocommerce_sale_price_html';
-				$html_before_discount   = apply_filters( $sale_price_html_filter, $html_before_discount, $product );
-			} elseif ( $is_variation && ! $product->get_price() > 0 ) {
-				$html_before_discount = apply_filters( 'woocommerce_variation_free_price_html', _x( 'Free!', 'Free product', 'woocommerce-memberships' ), $product );
-			}
-		}
-
-		return $html_before_discount;
-	}
-
-
-	/**
 	 * Get product HTML price before discount
 	 *
 	 * @since 1.7.0
-	 * @param \WC_Product|\WC_Product_Variable|\WC_Product_Variation $product Product
+	 * @param \WC_Product|\WC_Product_Variation $product Product
 	 * @return string HTML
 	 */
 	private function get_price_html_before_discount( $product ) {
@@ -823,22 +548,57 @@ class WC_Memberships_Member_Discounts {
 		do_action( 'wc_memberships_discounts_disable_price_adjustments' );
 		do_action( 'wc_memberships_discounts_disable_price_html_adjustments' );
 
-		if ( ! $product->get_price() && ! $product->is_type( array( 'variable', 'variation' ) ) ) {
-			// simple products with 0 or empty price
-			$html_before_discount = $this->get_void_product_price_html_before_discount( $product );
-		} elseif ( $product->is_type( 'variable' ) ) {
-			// variable products
-			$html_before_discount = $this->get_variable_product_price_html_before_discount( $product, $display_sale_price );
+		if ( $product->is_type( 'variable' ) ) {
+
+			$regular_min = $sale_min = $product->get_variation_regular_price( 'min', true );
+			$regular_max = $sale_max = $product->get_variation_regular_price( 'max', true );
+
+			if ( $on_sale = $this->product_is_on_sale_before_discount( $product ) ) {
+				$sale_min = $product->get_variation_sale_price( 'min', true );
+				$sale_max = $product->get_variation_sale_price( 'max', true );
+			}
+
+			$regular_price = $regular_min !== $regular_max ? sprintf( _x( '%1$s&ndash;%2$s', 'Price range: from-to', 'woocommerce-memberships' ), wc_price( $regular_min ), wc_price( $regular_max ) ) : wc_price( $regular_min );
+			$sale_price    = $sale_min    !== $sale_max    ? sprintf( _x( '%1$s&ndash;%2$s', 'Price range: from-to', 'woocommerce-memberships' ), wc_price( $sale_min ), wc_price( $sale_max ) )       : wc_price( $sale_min );
+
+			if ( $this->user_has_member_discount( $product ) ) {
+				if ( $on_sale ) {
+					$html_before_discount = $display_sale_price ? $sale_price : $regular_price;
+				} else {
+					$html_before_discount = $regular_price;
+				}
+			} else {
+				if ( $on_sale ) {
+					$html_before_discount = $html = '<del>' . $regular_price . '</del> <ins>' . $sale_price . '</ins>';
+				} else {
+					$html_before_discount = $regular_price;
+				}
+			}
+
 		} else {
-			// simple products with non-void prices, product variations
-			$html_before_discount = $this->get_product_price_html_before_discount( $product, $display_sale_price );
+
+			$on_sale = $this->product_is_on_sale_before_discount( $product );
+
+			if ( $this->user_has_member_discount( $product ) && ! $this->is_product_excluded_from_member_discounts( $product ) )  {
+				if ( $on_sale ) {
+					$html_before_discount = $display_sale_price ? wc_price( $product->get_sale_price() ) : wc_price( $product->get_regular_price() );
+				} else {
+					$html_before_discount = wc_price( $product->get_regular_price() );
+				}
+			} else {
+				if ( $on_sale ) {
+					$html_before_discount = $product->get_price_html_from_to( $product->get_regular_price(), $product->get_sale_price() );
+				} else {
+					$html_before_discount = wc_price( $product->get_regular_price() );
+				}
+			}
 		}
 
 		// re-enable membership price adjustments
 		do_action( 'wc_memberships_discounts_enable_price_adjustments' );
 		do_action( 'wc_memberships_discounts_enable_price_html_adjustments' );
 
-		return $html_before_discount . $product->get_price_suffix( $this->get_price_before_discount( $product ) );
+		return $html_before_discount;
 	}
 
 
@@ -867,75 +627,41 @@ class WC_Memberships_Member_Discounts {
 		// - no member user is logged in
 		// - product is excluded from discount rules
 		// - current user has no discounts for the product
-		// - product has no applicable member discount
 		if (    ! $use_discount_format
 		     || ! $this->member_is_logged_in
-		     ||   $this->is_product_excluded_from_member_discounts( $product )
-		     || ! $this->user_has_member_discount( $product ) ) {
+			 ||   $this->is_product_excluded_from_member_discounts( $product )
+		     || ! $this->user_has_member_discount( $product )
+		     || ! $this->has_discounted_price( $this->get_price_before_discount( $product ), SV_WC_Plugin_Compatibility::product_get_id( $product ) ) ) {
 
-			if ( $this->applying_discounts ) {
-				$html = $this->get_price_html_before_discount( $product );
-			}
+			return $this->get_price_html_before_discount( $product );
+		}
+
+		if ( $product->is_type( 'variable' ) ) {
+
+			$regular_min = $this->get_discounted_price( $product->get_variation_regular_price( 'min' ), $product );
+			$regular_max = $this->get_discounted_price( $product->get_variation_regular_price( 'max' ), $product );
+
+			$html_after_discount = $regular_min !== $regular_max ? sprintf( _x( '%1$s&ndash;%2$s', 'Price range: from-to', 'woocommerce-memberships' ), wc_price( $regular_min ), wc_price( $regular_max ) ) : wc_price( $regular_min );
 
 		} else {
 
-			// get string price BEFORE discount
-			$html_before_discount = $this->get_price_html_before_discount( $product );
-
-			// get string price AFTER discount
 			$html_after_discount = $html;
-
-			// special handling for variable products
-			if ( $product->is_type( 'variable' ) ) {
-				$html_after_discount = $this->get_variable_product_price_html_after_discount( $product );
-			}
-
-			// string prices do not match, we have a discount
-			if ( $html_after_discount !== $html_before_discount ) {
-
-				$html = '<del>' . $html_before_discount . '</del> <ins>' . $html_after_discount . '</ins>';
-
-				// special handling for variable products
-				if ( ! $product->is_type( 'variable' ) && $this->variable_product_has_discount( $product->id ) ) {
-
-					$price_before_discount = $this->get_price_before_discount( $product );
-					$price_after_discount  = $product->get_price();
-
-					if ( empty( $price_before_discount ) && empty( $price_after_discount ) ) {
-
-						$html = $html_after_discount;
-					}
-				}
-			}
-
-			// add a "Member Discount" badge for single variation prices
-			if ( $product->is_type( 'variation' ) ) {
-
-				// a "Member Discount" text label is shown when selecting this variation
-				$html .= ' ' . $this->get_member_discount_badge( $product, true );
-			}
-
-			/**
-			 * Filter the HTML price after member discounts have been applied.
-			 *
-			 * @since 1.7.2
-			 * @param string $html The price HTML output.
-			 * @param \WC_Product $product The product the discounted price is meant for.
-			 * @param string $html_before_discount Original HTML before discounts.
-			 * @param string $html_after_discount Original HTML after discounts.
-			 *
-			 */
-			$html = (string) apply_filters( 'wc_memberships_get_discounted_price_html', $html, $product, $html_before_discount, $html_after_discount );
 		}
 
-		/**
-		 * Filter the HTML price after member discounts may have been applied.
-		 *
-		 * @since 1.7.1
-		 * @param string $html The price HTML.
-		 * @param \WC_Product $product The product the price is meant for.
-		 */
-		return apply_filters( 'wc_memberships_get_price_html', $html, $product );
+		$html_before_discount = $this->get_price_html_before_discount( $product );
+
+		// string prices do not match, we have a discount
+		if ( $html_after_discount !== $html_before_discount ) {
+			$html = '<del>' . $html_before_discount . '</del> <ins>' . $html_after_discount . '</ins>';
+		}
+
+		// add a "Member Discount" badge for single variation prices
+		if ( $product->is_type( 'variation' ) ) {
+
+			$html .= ' ' . $this->get_member_discount_badge( $product, true );
+		}
+
+		return $html;
 	}
 
 
@@ -962,9 +688,7 @@ class WC_Memberships_Member_Discounts {
 		     ||   $this->is_product_excluded_from_member_discounts( $product )
 		     || ! $this->user_has_member_discount( $product ) ) {
 
-			$price_float = (float) $price;
-
-			return $this->applying_discounts && empty( $price_float ) ? $this->get_price_before_discount( $product ) : $price;
+			return $price;
 		}
 
 		$product_id = SV_WC_Plugin_Compatibility::product_get_id( $product );
@@ -988,15 +712,15 @@ class WC_Memberships_Member_Discounts {
 
 				foreach ( $children as $variation_id ) {
 
-					// make sure we start from the normal un-discounted price
-					do_action( 'wc_memberships_discounts_disable_price_adjustments' );
-
 					if ( $display ) {
 
 						if ( $variation = $product->get_child( $variation_id ) ) {
 
+							// make sure we start from the normal un-discounted price
+							do_action( 'wc_memberships_discounts_disable_price_adjustments' );
+
 							// in display mode, we need to account for taxes
-							$base_price = $variation->get_price() > 0 ? $variation->get_display_price() : 0;
+							$base_price = $this->get_price_with_tax( $variation );
 							$calc_price = $base_price;
 
 							// try getting the discounted price for the variation
@@ -1006,23 +730,15 @@ class WC_Memberships_Member_Discounts {
 							if ( is_numeric( $discounted_price ) && $base_price !== $discounted_price ) {
 								$calc_price = $discounted_price;
 							}
+
+							// re-enable discounts in pricing flow
+							do_action( 'wc_memberships_discounts_enable_price_adjustments' );
 						}
 
 					} else {
 
 						$calc_price = (float) get_post_meta( $variation_id, '_price', true );
-
-						// try getting the discounted price for the variation
-						$discounted_price = $this->get_discounted_price( $calc_price, $variation_id );
-
-						// if there's a difference, grab discounted price
-						if ( is_numeric( $discounted_price ) && $calc_price !== $discounted_price ) {
-							$calc_price = $discounted_price;
-						}
 					}
-
-					// re-enable discounts in pricing flow
-					do_action( 'wc_memberships_discounts_enable_price_adjustments' );
 
 					if ( $min_price === null || $calc_price < $min_price ) {
 						$min_price = $calc_price;
@@ -1080,7 +796,7 @@ class WC_Memberships_Member_Discounts {
 
 		// so we can get the base price without member discounts
 		// also, in cart we need to account for tax display
-		$price = $product->get_display_price();
+		$price = $this->get_price_with_tax( $product );
 
 		// re-enable disable our price adjustments
 		do_action( 'wc_memberships_discounts_enable_price_adjustments' );
@@ -1088,7 +804,7 @@ class WC_Memberships_Member_Discounts {
 		if ( $this->has_discounted_price( $price, $product ) ) {
 
 			// in cart, we need to account for tax display
-			$discounted_price = $product->get_display_price();
+			$discounted_price = $this->get_price_with_tax( $product );
 
 			/** This filter is documented in class-wc-memberships-member-discounts.php **/
 			$use_discount_format = apply_filters( 'wc_memberships_use_discount_format', true );
@@ -1125,55 +841,6 @@ class WC_Memberships_Member_Discounts {
 		}
 
 		return $data;
-	}
-
-
-	/**
-	 * Adjust the optional display price suffix
-	 *
-	 * @internal
-	 *
-	 * @since 1.7.3
-	 * @param string $price_display_suffix The display price suffix string
-	 * @param \WC_Product $product The product object
-	 * @return string The price suffix
-	 */
-	public function on_get_price_suffix( $price_display_suffix, $product ) {
-
-		$price_suffix = $price_display_suffix;
-
-		// Special handling if:
-		// - member is not logged in
-		// - product is excluded from member discounts
-		// - user has no member discount over the product
-		if (    ! $this->member_is_logged_in
-		     ||   $this->is_product_excluded_from_member_discounts( $product )
-		     || ! $this->user_has_member_discount( $product ) ) {
-
-			$price_display_suffix_raw  = get_option( 'woocommerce_price_display_suffix' );
-			$price_suffix_merge_tags   = array(
-				'{price_including_tax}',
-				'{price_excluding_tax}',
-			);
-
-			if ( in_array( $price_display_suffix_raw, $price_suffix_merge_tags, true ) ) {
-
-				do_action( 'wc_memberships_discounts_disable_price_adjustments' );
-
-				$replace = array(
-					wc_price( $product->get_price_including_tax() ),
-					wc_price( $product->get_price_excluding_tax() ),
-				);
-
-				$price_suffix = str_replace( $price_suffix_merge_tags, $replace, $price_display_suffix_raw );
-
-				do_action( 'wc_memberships_discounts_enable_price_adjustments' );
-
-				$price_suffix = ' <small class="woocommerce-price-suffix">' . $price_suffix . '</small>';
-			}
-		}
-
-		return $price_suffix;
 	}
 
 
@@ -1309,11 +976,11 @@ class WC_Memberships_Member_Discounts {
 
 						case 'percentage':
 							$discounted_price = $price * ( 100 - $rule->get_discount_amount() ) / 100;
-						break;
+							break;
 
 						case 'amount':
 							$discounted_price = $price - $rule->get_discount_amount();
-						break;
+							break;
 					}
 
 					// make sure that the lowest price gets applied and doesn't become negative
@@ -1341,17 +1008,7 @@ class WC_Memberships_Member_Discounts {
 			}
 		}
 
-		/**
-		 * Filter discounted price of a membership product
-		 *
-		 * @since 1.7.1
-		 * @param null|float $price The discounted price or null if no discount applies
-		 * @param float $base_price The original price (not discounted by Memberships)
-		 * @param int $product_id The id of the product (or variation) the price is for
-		 * @param int $member_id The id of the logged in member (it's zero for non logged in users)
-		 * @param \WC_Product $product The product object for the price being discounted
-		 */
-		return apply_filters( 'wc_memberships_get_discounted_price', $price, $base_price, $product_id, $member_id, $product );
+		return $price;
 	}
 
 
@@ -1360,31 +1017,12 @@ class WC_Memberships_Member_Discounts {
 	 *
 	 * @since 1.3.0
 	 * @param float $base_price Original price
-	 * @param int|\WC_Product $product Product ID or object
+	 * @param int|\WC_product $product Product ID or object
 	 * @param null|int $user_id Optional, defaults to current user id
 	 * @return bool
 	 */
 	public function has_discounted_price( $base_price, $product, $user_id = null ) {
-
-		if ( ! is_object( $product ) ) {
-			$product = wc_get_product( $product );
-		}
-
-		$has_discounted_price = is_numeric( $this->get_discounted_price( $base_price, $product, $user_id ) );
-
-		if ( ! $has_discounted_price && $product->is_type( 'variable' ) && ( $variations = $product->get_children() ) ) {
-
-			$variations_discounts = array();
-
-			foreach ( $variations as $variation_id ) {
-
-				$variations_discounts[] = $this->has_discounted_price( $base_price, $variation_id, $user_id );
-			}
-
-			$has_discounted_price = in_array( true, $variations_discounts, true );
-		}
-
-		return $has_discounted_price;
+		return is_numeric( $this->get_discounted_price( $base_price, $product, $user_id ) );
 	}
 
 

@@ -171,17 +171,9 @@ class WC_Memberships_Integration_Subscriptions_Admin {
 			}
 
 			// check if we have a subscription id and it belongs to a subscription
-			if ( $subscription_id > 0 && ( $subscription = wcs_get_subscription( $subscription_id ) ) ) {
-
+			if ( $subscription_id > 0 && wcs_get_subscription( $subscription_id ) ) {
 				$subscription_membership->set_subscription_id( $subscription_id );
-
-				// maybe set the trial end date on the membership
-				if ( $trial_end = wc_memberships()->get_integrations_instance()->get_subscriptions_instance()->get_subscription_event_date( $subscription, 'trial_end' ) ) {
-					$subscription_membership->set_free_trial_end_date( $trial_end );
-				}
-
 			} else {
-
 				$subscription_membership->delete_subscription_id();
 			}
 		}
@@ -818,11 +810,6 @@ class WC_Memberships_Integration_Subscriptions_Admin {
 
 					// the two ids differ, link the membership to a new subscription
 					$subscription_membership->set_subscription_id( $new_subscription_id );
-
-					// maybe update the trial end date
-					if ( $trial_end = wc_memberships()->get_integrations_instance()->get_subscriptions_instance()->get_subscription_event_date( $subscription, 'trial_end' ) ) {
-						$subscription_membership->set_free_trial_end_date( $trial_end );
-					}
 				}
 
 			// the membership is not linked to a subscription
@@ -830,11 +817,6 @@ class WC_Memberships_Integration_Subscriptions_Admin {
 
 				// link the subscription to the membership
 				$subscription_membership->set_subscription_id( $new_subscription_id );
-
-				// maybe update the trial end date
-				if ( $trial_end = wc_memberships()->get_integrations_instance()->get_subscriptions_instance()->get_subscription_event_date( $subscription, 'trial_end' ) ) {
-					$subscription_membership->set_free_trial_end_date( $trial_end );
-				}
 			}
 		}
 	}

@@ -75,13 +75,9 @@ class WC_Memberships_Restrictions {
 		add_filter( 'the_posts', array( $this, 'exclude_restricted_comments' ), 10, 2 );
 
 		// hide prices & thumbnails for view-restricted products
-		add_filter( 'woocommerce_get_price_html',              array( $this, 'hide_restricted_product_price' ), 10, 2 );
+		add_filter( 'woocommerce_get_price_html', array( $this, 'hide_restricted_product_price' ), 10, 2 );
 		add_action( 'woocommerce_before_shop_loop_item_title', array( $this, 'maybe_remove_product_thumbnail' ), 5 );
 		add_action( 'woocommerce_after_shop_loop_item_title',  array( $this, 'restore_product_thumbnail' ), 5 );
-
-		// remove restricted product categories from being listed in product categories widget
-		add_filter( 'woocommerce_product_categories_widget_args',    array( $this, 'hide_widget_product_categories' ), 1 );
-		add_filter( 'wc_product_dropdown_categories_get_terms_args', array( $this, 'hide_widget_product_dropdown_categories' ), 1 );
 
 		// restrict product viewing by hijacking WooCommerce product password protection (hide_content restriction mode)
 		add_action( 'woocommerce_before_single_product', array( $this, 'maybe_password_protect_product' ) );
@@ -775,86 +771,6 @@ class WC_Memberships_Restrictions {
 			add_action( 'woocommerce_before_shop_loop_item_title', 'woocommerce_template_loop_product_thumbnail', 10 );
 			remove_action( 'woocommerce_before_shop_loop_item_title', array( $this, 'template_loop_product_thumbnail_placeholder' ) );
 		}
-	}
-
-
-	/**
-	 * Return an array of product categories ids to be excluded
-	 *
-	 * @since 1.7.1
-	 * @param array $args Arguments to pass to get_terms()
-	 * @return array
-	 */
-	private function get_restricted_product_category_excluded_tree( array $args ) {
-
-		if ( version_compare( get_bloginfo( 'version' ), '4.5', '>=' ) ) {
-			$args['taxonomy']   = 'product_cat';
-			$product_categories = get_terms( $args );
-		} else {
-			$product_categories = get_terms( 'product_cat', $args );
-		}
-
-		$exclude_tree = array();
-
-		// if we are not hiding products completely we can safely list categories
-		if ( ! empty( $product_categories ) && 'yes' === get_option( 'wc_memberships_hide_restricted_products' ) ) {
-
-			foreach ( $product_categories as $product_category_id ) {
-
-				if ( ! current_user_can( 'wc_memberships_view_restricted_product_taxonomy_term', 'product_cat', $product_category_id ) ) {
-					$exclude_tree[] = $product_category_id;
-				}
-			}
-		}
-
-		return $exclude_tree;
-	}
-
-
-	/**
-	 * Filter the WooCommerce product categories widget
-	 * to account for restricted product categories to be hidden completely
-	 *
-	 * @internal
-	 *
-	 * @since 1.7.1
-	 * @param array $args Array of arguments
-	 * @return array
-	 */
-	public function hide_widget_product_categories( $args ) {
-
-		$excluded_tree = $this->get_restricted_product_category_excluded_tree( array( 'fields' => 'ids' ) );
-
-		if ( ! empty( $excluded_tree ) ) {
-			$args['exclude_tree'] = $excluded_tree;
-		}
-
-		return $args;
-	}
-
-
-	/**
-	 * Filter the WooCommerce product categories dropdown widget
-	 * to account for restricted product categories to be hidden completely
-	 *
-	 * @internal
-	 *
-	 * @since 1.7.1
-	 * @param array $args Array of arguments
-	 * @return array
-	 */
-	public function hide_widget_product_dropdown_categories( $args ) {
-
-		$ids_only           = $args;
-		$ids_only['fields'] = 'ids';
-
-		$exclude_tree = $this->get_restricted_product_category_excluded_tree( $ids_only );
-
-		if ( ! empty( $exclude_tree ) ) {
-			$args['exclude_tree'] = $exclude_tree;
-		}
-
-		return $args;
 	}
 
 

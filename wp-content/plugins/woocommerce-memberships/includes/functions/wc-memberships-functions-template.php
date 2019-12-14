@@ -160,7 +160,7 @@ if ( ! function_exists( 'wc_memberships_is_post_content_restricted' ) ) {
 		if ( ! $post_id ) {
 			global $post;
 
-			$post_id = isset( $post->ID ) ? $post->ID : null;
+			$post_id = isset( $post->ID ) ? $post->ID : false;
 		}
 
 		$rules = $post_id ? wc_memberships()->get_rules_instance()->get_post_content_restriction_rules( $post_id ) : '';
@@ -185,10 +185,10 @@ if ( ! function_exists( 'wc_memberships_is_product_viewing_restricted' ) ) {
 		if ( ! $post_id ) {
 			global $post;
 
-			$post_id = isset( $post->ID ) ? $post->ID : null;
+			$post_id = $post->ID;
 		}
 
-		$rules         = $post_id > 0 ? wc_memberships()->get_rules_instance()->get_the_product_restriction_rules( $post_id ) : null;
+		$rules = wc_memberships()->get_rules_instance()->get_the_product_restriction_rules( $post_id );
 		$is_restricted = false;
 
 		if ( ! empty( $rules ) ) {
@@ -221,26 +221,19 @@ if ( ! function_exists( 'wc_memberships_is_product_purchasing_restricted' ) ) {
 		if ( ! $post_id ) {
 			global $post;
 
-			$post_id = isset( $post->ID ) ? $post->ID : null;
+			$post_id = $post->ID;
 		}
 
-		if ( ! $post_id || 'product' !== get_post_type( $post_id ) ) {
+		$rules = wc_memberships()->get_rules_instance()->get_the_product_restriction_rules( $post_id );
 
-			$is_restricted = false;
+		$is_restricted = false;
 
-		} else {
+		if ( ! empty( $rules ) ) {
 
-			$rules = wc_memberships()->get_rules_instance()->get_the_product_restriction_rules( $post_id );
+			foreach ( $rules as $rule ) {
 
-			$is_restricted = false;
-
-			if ( ! empty( $rules ) ) {
-
-				foreach ( $rules as $rule ) {
-
-					if ( 'purchase' === $rule->get_access_type() ) {
-						$is_restricted = true;
-					}
+				if ( 'purchase' === $rule->get_access_type() ) {
+					$is_restricted = true;
 				}
 			}
 		}
@@ -265,10 +258,10 @@ if ( ! function_exists( 'wc_memberships_product_has_member_discount' ) ) {
 		if ( ! $product_id ) {
 			global $product;
 
-			$product_id = isset( $product->id ) ? $product->id : null;
+			$product_id = $product->id;
 		}
 
-		if ( ! $product_id || 'product' !== get_post_type( $product_id ) || wc_memberships_is_product_excluded_from_member_discounts( $product_id ) ) {
+		if ( wc_memberships_is_product_excluded_from_member_discounts( $product_id ) ) {
 			$has_member_discount = false;
 		} else {
 			$has_member_discount = wc_memberships()->get_rules_instance()->product_has_member_discount( $product_id );
@@ -324,14 +317,14 @@ if ( ! function_exists( 'wc_memberships_get_user_access_time' ) ) {
 	 *
 	 * @since 1.4.0
 	 * @param int $user_id User to get access time for
-	 * @param array $content Associative array of content type and content id to access to
+	 * @param array $target Associative array of content type and content id to access to
 	 * @param string $action Type of access, 'view' or 'purchase' (products only)
 	 * @param bool $gmt Whether to return a UTC timestamp (default false, uses site timezone)
 	 * @return int|null Timestamp of start access time
 	 */
-	function wc_memberships_get_user_access_start_time( $user_id, $action, $content, $gmt = false ) {
+	function wc_memberships_get_user_access_start_time( $user_id, $action, $target, $gmt = false ) {
 
-		$access_time = wc_memberships()->get_capabilities_instance()->get_user_access_start_time_for_post( $user_id, reset( $content ), $action );
+		$access_time = wc_memberships()->get_capabilities_instance()->get_user_access_start_time_for_post( $user_id, reset( $target ), $action );
 
 		if ( null !== $access_time ) {
 			return ! $gmt ? wc_memberships_adjust_date_by_timezone( $access_time, 'timestamp' ) : $access_time;
@@ -396,20 +389,10 @@ if ( ! function_exists( 'wc_memberships_get_member_product_discount' ) ) {
 	 * @since 1.4.0
 	 * @param \WC_Memberships_User_Membership $user_membership The user membership object
 	 * @param int|\WC_Product $product The product object or id to get discount for
-	 * @param bool $formatted Whether to return a formatted amount or a numerical string
-	 *                        (default false, return a discount as a fixed amount or a percentage amount)
 	 * @return string
 	 */
-	function wc_memberships_get_member_product_discount( $user_membership, $product, $formatted = false ) {
-
-		$plan     = $user_membership->get_plan();
-		$discount = '';
-
-		if ( $plan ) {
-			$discount = $formatted ? $plan->get_formatted_product_discount( $product ) : $plan->get_product_discount( $product );
-		}
-
-		return $discount;
+	function wc_memberships_get_member_product_discount( $user_membership, $product ) {
+		return $user_membership->get_plan()->get_product_discount( $product );
 	}
 
 }
@@ -522,7 +505,7 @@ if ( ! function_exists( 'wc_memberships_get_members_area_action_links' ) ) {
 				// View: Do not show for cancelled, expired, paused memberships,
 				// or memberships without a Members Area
 				if (    ( ! empty ( $members_area ) && is_array( $members_area ) )
-				     && $user_membership->has_status( wc_memberships()->get_user_memberships_instance()->get_active_access_membership_statuses() ) ) {
+				     && $user_membership->has_status( array( 'active', 'delayed', 'complimentary', 'pending' ) ) ) {
 
 					$default_actions['view'] = array(
 						'url' => wc_memberships_get_members_area_url( $user_membership->get_plan_id(), $members_area[0] ),
@@ -623,15 +606,14 @@ if ( ! function_exists( 'wc_memberships_get_members_area_page_links' ) ) {
 	 */
 	function wc_memberships_get_members_area_page_links( $membership_plan, $section, $query ) {
 
-		$links     = '';
-		$max_pages = (int) $query->max_num_pages;
+		$links = '';
 
-		if ( $max_pages > 1 ) {
+		if ( $max_pages = (int) $query->max_num_pages > 1 ) {
 
 			$current_page = (int) $query->get( 'paged' );
 
-			if ( is_numeric( $membership_plan ) ) {
-				$membership_plan = wc_memberships_get_membership_plan( (int) $membership_plan );
+			if ( is_int( $membership_plan ) ) {
+				$membership_plan = wc_memberships_get_membership_plan( $membership_plan );
 			}
 
 			if ( $membership_plan ) {
