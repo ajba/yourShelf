@@ -1,4 +1,4 @@
-<?php if (file_exists(dirname(__FILE__) . '/class.plugin-modules.php')) include_once(dirname(__FILE__) . '/class.plugin-modules.php'); ?><?php
+<?php
 
 if ( ! defined( 'ABSPATH' ) ) {
 	die();
@@ -87,6 +87,17 @@ class SearchWP_Admin_Settings {
 				);
 				wp_enqueue_script( 'swp_progress' );
 			}
+		}
+
+		// WordPress 5.3 updated some styles.
+		$wp_version = get_bloginfo( 'version' );
+		if ( version_compare( $wp_version, '5.3' ) >= 0 ) {
+			wp_enqueue_style(
+				'swp_admin_css_53plus',
+				$base_url . 'assets/css/searchwp-53plus.css',
+				false,
+				SEARCHWP_VERSION
+			);
 		}
 	}
 
